@@ -253,15 +253,15 @@ def main():
     
     # logging.info('is provided', latlon_file_provided)
     
-    loggin.info('Input Complete.')
+    logging.info('Input Complete.')
     cnt = 0
     feature_dict = {}
 
     if len(node_ids_reach_ids_lat_lons) == 0:
-        loggin.info('NO NODES FOUND IN TILE, EXITING...')
+        logging.info('NO NODES FOUND IN TILE, EXITING...')
         sys.exit()
     else:
-        loggin.info('Running ssc prediction on %s nodes.', len(node_ids_reach_ids_lat_lons))
+        logging.info('Running ssc prediction on %s nodes.', len(node_ids_reach_ids_lat_lons))
 
 
     

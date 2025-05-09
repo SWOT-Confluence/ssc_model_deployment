@@ -14,6 +14,7 @@ import tensorflow as tf
 import csv
 import pickle
 import os
+import sys
 import time
 from .auxfunctions.f_execens import f_execens
 
@@ -224,7 +225,8 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
     data_coords_array_filtered2=data_coords_array_filtered[~locations_nan_output]
     
     if not data_coords_array_filtered2.size >0:
-        print('all nans in this file: ' + str(file_path))
+        print('all nans found in preprocessing')
+        sys.exit(0)
     else:
     
         y_modeled,y_observed,coords_obs= f_execens(model1_load,model2_load,data_input_array_filtered2,data_output_array_filtered2,data_coords_array_filtered2,minimum_out,maximum_out,min_m2,max_m2,min_input_m1,max_input_m1,min_input_m2,max_input_m2,maxval_cut,varnum) #
