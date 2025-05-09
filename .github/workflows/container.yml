@@ -1,0 +1,64 @@
+# Main build pipeline that verifies, builds, and deploys the software
+name: Build Docker image (ghcr.io)
+# Events that trigger the workflow
+on:
+  # Run workflow manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        description: Application version to build container image for
+        required: true
+
+# Only allow 1 execution of this workflow to be running at any given time per-branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Environment variables
+env:
+  IMAGE_NAME: ${{ github.repository }}
+  POETRY_VERSION: "2.1.1"
+  PYTHON_VERSION: "3.10"
+  REGISTRY: ghcr.io
+
+jobs:
+  container:
+    name: Build container image
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    env:
+      APP_VERSION: ${{ github.event.inputs.version }}
+    steps:
+      # Check out GitHub repo
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+
+      # ghcr.io container image
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=pep440,pattern={{version}},value=${{ env.APP_VERSION }}
+          flavor: |
+            latest=true
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          pull: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

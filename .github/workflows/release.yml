@@ -1,0 +1,22 @@
+# Main build pipeline that verifies, builds, and deploys the software
+name: Create a release
+# Events that trigger the workflow
+on:
+  # Run workflow manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        description: Application version to build container image for
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GH release
+        uses: ncipollo/release-action@v1
+        with:
+          generateReleaseNotes: true
+          name: ${{ github.event.inputs.version }}
+          tag: ${{ github.event.inputs.version }}

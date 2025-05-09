@@ -1,0 +1,155 @@
+# Main build pipeline that verifies, builds, and deploys the software
+name: Build and Deploy
+# Events that trigger the workflow
+on:
+  # Trigger based on push to all branches - TODO
+  # push:
+    # branches:
+      # - 'development'
+      # - 'feature/**'
+      # - 'release/**'
+      # - 'main'
+    # tags-ignore:
+      # - '*'
+  # Run workflow manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+        venue:
+            type: choice
+            description: Venue to deploy to
+            options:
+                - DEV1
+                - DEV2
+                - OPS
+        version:
+          type: string
+          description: Application version to build container image for
+          required: true
+
+# Environment variables
+env:
+  APP_NAME_ENV: 'ssc-model-deployment'
+
+jobs:
+  build:
+    name: Build and Deploy
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    steps:
+
+      # DEV1 environment variables
+      - name: Set Environment Variables
+        if: github.event.inputs.venue == 'DEV1'
+        run: |
+          echo "TARGET_ENV=DEV1" >> $GITHUB_ENV
+          echo "PREFIX_ENV=confluence-dev1" >> $GITHUB_ENV
+      
+      # DEV2 environment variables
+      - name: Set Environment Variables
+        if: github.event.inputs.venue == 'DEV2'
+        run: |
+          echo "TARGET_ENV=DEV2" >> $GITHUB_ENV
+          echo "PREFIX_ENV=confluence-dev2" >> $GITHUB_ENV
+
+      # OPS environment variables
+      - name: Set Environment Variables
+        if: github.event.inputs.venue == 'OPS'
+        run: |
+          echo "TARGET_ENV=OPS" >> $GITHUB_ENV
+          echo "PREFIX_ENV=confluence-ops" >> $GITHUB_ENV
+
+      # Check out GitHub repo
+      - uses: actions/checkout@v4
+
+      # SNYK IAC scan and report - TODO
+      # - name: Run Snyk IAC to test and report
+        # uses: snyk/actions/iac@master
+        # env:
+            # SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        # with:
+          # command: test
+          # args: >
+              # --org=${{ secrets.SNYK_ORG_ID }}
+              # --severity-threshold=high
+              # --report
+
+      # SNYK Python
+      # - name: Run Snyk Python to test
+        # uses: snyk/actions/python-3.10@master
+        # env:
+            # SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        # with:
+          # command: test
+          # args: >
+              # --org=${{ secrets.SNYK_ORG_ID }}
+              # --project-name=${{ github.repository }}
+              # --severity-threshold=high
+              # --fail-on=all
+      # - name: Run Snyk Python to report
+        # uses: snyk/actions/python-3.10@master
+        # env:
+          # SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        # with:
+          # command: monitor
+          # args: >
+            # --org=${{ secrets.SNYK_ORG_ID }}
+            # --project-name=${{ github.repository }}
+
+      # Configure credentials 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets[format('AWS_ACCESS_KEY_ID_{0}', env.TARGET_ENV)] }}
+          aws-secret-access-key: ${{ secrets[format('AWS_SECRET_ACCESS_KEY_{0}', env.TARGET_ENV)] }}
+          aws-region: us-west-2
+          mask-aws-account-id: true
+
+      # Login and define registry, repository, and tag names
+      - name: Login to AWS ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: 'true'
+      - name: Define ECR registry, repository, and image tag names
+        run : |
+          echo "REGISTRY=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_ENV
+          echo "REPOSITORY=${PREFIX_ENV}-${APP_NAME_ENV}" >> $GITHUB_ENV
+          echo "IMAGE_TAG=latest" >> $GITHUB_ENV
+
+      # Create ECR repository (if it does not exist)
+      - name: Create AWS ECR Repository
+        run: deploy/deploy-ecr.sh $REGISTRY $REPOSITORY
+
+      # Build and push Docker container image
+      - name: Pull and Push to AWS ECR
+        run: |
+          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+
+      # Set up Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+      
+      - name: Define TF_VAR values
+        run: |
+          echo "TF_VAR_app_version=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          echo "TF_VAR_environment=$TARGET_ENV" >> $GITHUB_ENV
+          echo "TF_VAR_prefix=$PREFIX_ENV" >> $GITHUB_ENV
+          echo "TF_IN_AUTOMATION=true" >> $GITHUB_ENV
+
+      - name: Initialize Terraform
+        working-directory: terraform/
+        run: |
+          terraform init -reconfigure \
+              -backend-config="bucket=${PREFIX_ENV}-tf-state" \
+              -backend-config="key=${APP_NAME_ENV}.tfstate" \
+              -backend-config="region=${AWS_DEFAULT_REGION}"
+
+      - name: Validate Terraform
+        working-directory: terraform/
+        run: terraform validate -no-color
+
+      # Deploy AWS infrastructure
+      - name: Deploy Terraform
+        working-directory: terraform/
+        run: terraform apply -auto-approve
