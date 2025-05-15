@@ -60,8 +60,8 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
 
     #load models
 
-    path_load_m1= os.path.join(model_dir, "nd_20250430_1_m1")
-    path_load_m2= os.path.join(model_dir, "nd_20250430_1_m1")
+    path_load_m1= os.path.join(model_dir, "wt_20250514_4_m1")
+    path_load_m2= os.path.join(model_dir, "wt_20250514_4_m2")
 
     model1_load = tf.keras.models.load_model(path_load_m1)
 
@@ -146,7 +146,7 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
     df_hlsprocessed['LorS'] = df_hlsprocessed['LorS'].replace(mapping)
     
     # empty output column
-    df_hlsprocessed['tss_value'] = 0
+    df_hlsprocessed['Value'] = 0
     
     dataframe_array=df_hlsprocessed.to_numpy()
     
@@ -157,20 +157,30 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
     #                             'b10_median','b11_min','b11_mean','b11_max','b11_std','b11_median','b12_min','b12_mean','b12_max','b12_std',\
     #                                 'b12_median','b8a_min','b8a_mean','b8a_max','b8a_std','b8a_median','LorS']
     
-    input_cols= ['B01_min','B01_mean','B01_max','B01_std','B01_median','B01_count','B02_min','B02_mean','B02_max','B02_std',\
-                    'B02_median','B03_min','B03_mean','B03_max','B03_std','B03_median','B04_min','B04_mean','B04_max','B04_std',\
-                    'B04_median','B09_min','B09_mean','B09_max','B09_std',\
-                                'B09_median','B06_min','B06_mean','B06_max','B06_std','B06_median','B07_min','B07_mean','B07_max','B07_std',\
-                                    'B07_median','B05_min','B05_mean','B05_max','B05_std','B05_median','LorS']
-
+    # input_cols= ['B01_min','B01_mean','B01_max','B01_std','B01_median','B01_count','B02_min','B02_mean','B02_max','B02_std',\
+    #                 'B02_median','B03_min','B03_mean','B03_max','B03_std','B03_median','B04_min','B04_mean','B04_max','B04_std',\
+    #                 'B04_median','B09_min','B09_mean','B09_max','B09_std',\
+    #                             'B09_median','B06_min','B06_mean','B06_max','B06_std','B06_median','B07_min','B07_mean','B07_max','B07_std',\
+    #                                 'B07_median','B05_min','B05_mean','B05_max','B05_std','B05_median','LorS']
+    input_cols = [
+    'B01_min','B01_mean','B01_max','B01_std','B01_median','B01_wmean','B01_wstd','B01_wmedian','B01_count',
+    'B02_min','B02_mean','B02_max','B02_std','B02_median','B02_wmean','B02_wstd','B02_wmedian',
+    'B03_min','B03_mean','B03_max','B03_std','B03_median','B03_wmean','B03_wstd','B03_wmedian',
+    'B04_min','B04_mean','B04_max','B04_std','B04_median','B04_wmean','B04_wstd','B04_wmedian',
+    'B09_min','B09_mean','B09_max','B09_std','B09_median','B09_wmean','B09_wstd','B09_wmedian',
+    'B06_min','B06_mean','B06_max','B06_std','B06_median','B06_wmean','B06_wstd','B06_wmedian',
+    'B07_min','B07_mean','B07_max','B07_std','B07_median','B07_wmean','B07_wstd','B07_wmedian',
+    'B05_min','B05_mean','B05_max','B05_std','B05_median','B05_wmean','B05_wstd','B05_wmedian',
+    'LorS'
+    ]
 
     
-    output_cols=['tss_value']
+    output_cols=['Value']#['tss_value']
     
     coords_cols= ['lat','lon']
     
     #limits for m1
-    minimum_out=0 #no concentration below 0 is possible
+    minimum_out=-1.0 #in log scale #0 #no concentration below 0 is possible
     
     varnum=len(input_cols)#
     
