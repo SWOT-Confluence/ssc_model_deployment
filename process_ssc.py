@@ -83,7 +83,7 @@ import ssc.input
 # import ssc.preprocessing
 from ssc.generate_feats_multitask import multitask_model_deploy
 from ssc.crop_bands import crop_bands
-from ssc.ann_ssc_model_v2 import ann_ssc_model
+#from ssc.ann_ssc_model_v2 import ann_ssc_model #commenting for clarity
 from ssc.output import feature_output
 # import cv_preprocessing, ssc_preprocessing
 # from ssc.multitasking_vision_model import multitasking_vision_model

@@ -60,8 +60,8 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
 
     #load models
 
-    path_load_m1= os.path.join(model_dir, "wt_20250514_4_m1")
-    path_load_m2= os.path.join(model_dir, "wt_20250514_4_m2")
+    path_load_m1= os.path.join(model_dir, "gl_20250522_2_m1")
+    path_load_m2= os.path.join(model_dir, "gl_20250522_2_m2")
 
     model1_load = tf.keras.models.load_model(path_load_m1)
 
@@ -116,31 +116,20 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
         
     #     file_name = os.path.basename(file_path)
     if "S" in df_hlsprocessed_raw['LorS'].unique():
-            # print(f"Pattern 'S30' found in file: {file_name}")
-            df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B05', 'NA1') if 'B05' in x else x)
-            df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B8A', 'B05') if 'B8A' in x else x)
-            df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B06', 'NA2') if 'B06' in x else x)
-            df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B11', 'B06') if 'B11' in x else x)
-            df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B07', 'NA3') if 'B07' in x else x)
-            df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B12', 'B07') if 'B12' in x else x)
-            df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B09', 'NA4') if 'B09' in x else x)
-            df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B10', 'B09') if 'B10' in x else x)
+        # print(f"Pattern 'S30' found in file: {file_name}")
+        df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B05', 'NA1') if 'B05' in x else x)
+        df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B8A', 'B05') if 'B8A' in x else x)
+        df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B06', 'NA2') if 'B06' in x else x)
+        df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B11', 'B06') if 'B11' in x else x)
+        df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B07', 'NA3') if 'B07' in x else x)
+        df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B12', 'B07') if 'B12' in x else x)
+        df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B09', 'NA4') if 'B09' in x else x)
+        df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B10', 'B09') if 'B10' in x else x)
 
     elif "L" in df_hlsprocessed_raw['LorS'].unique():
-        # print(f"Pattern 'L30' found in file: {file_name}")
-        #in this dataset, bands didnt come with generalized nomenclature
-        #verify that's the case
-        try:
-            df_hlsprocessed_raw['B08_count']==0 
-            #looks like it can be adapted nomenclature
-            print('looks like it can be adapted nomenclature')
-        except:
-            #it didnt really
-            print('confirmed, not adapted nomenclature')
-            df_hlsprocessed=df_hlsprocessed_raw
-            #df_hlsprocessed=df_hlsprocessed_raw.rename(columns={'old_col1': 'new_col1', 'old_col2': 'new_col2'})
-            #df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B01', 'B05') if 'B01' in x else x)
-    
+        # Landsat, doesnt need band name adaptations
+        df_hlsprocessed=df_hlsprocessed_raw
+   
     
     mapping = {'L': 0, 'S': 1}
     df_hlsprocessed['LorS'] = df_hlsprocessed['LorS'].replace(mapping)
@@ -148,7 +137,7 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
     # empty output column
     df_hlsprocessed['Value'] = 0
     
-    dataframe_array=df_hlsprocessed.to_numpy()
+    #dataframe_array=df_hlsprocessed.to_numpy()
     
     
     # input_cols= ['b1_min','b1_mean','b1_max','b1_std','b1_median','b1_count','b2_min','b2_mean','b2_max','b2_std',\
@@ -180,7 +169,7 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
     coords_cols= ['lat','lon']
     
     #limits for m1
-    minimum_out=-1.0 #in log scale #0 #no concentration below 0 is possible
+    minimum_out=-1.0 #in log scale 
     
     varnum=len(input_cols)#
     

@@ -9,7 +9,7 @@ Separate function, executes ensemble model and returns values
 import numpy as np
 
 #from auxfunctions.f_execens import f_execens
-from .f_clamp import clamp_vector
+from auxfunctions.clamp_vector import clamp_vector
 
 def f_execens_separated(model,model2,x_test,y_test,coords_test,minimum_out,maximum_out,min_m2,max_m2,min_input_m1,max_input_m1,min_input_m2,max_input_m2,maxval_cut,varnum):
     #start by running m1
@@ -75,10 +75,8 @@ def f_execens(model,model2,x_test,y_test,coords_test,minimum_out,maximum_out,min
     
     max_m1=maximum_out
     min_m1=minimum_out
+    #print(max_m1)
     predict_both_models=True
-    
-    # force type
-    x_test = x_test.astype(float)
     
     x_test_eval_m1=(x_test-min_input_m1)/(max_input_m1-min_input_m1)
     #predict based on m1
@@ -99,7 +97,10 @@ def f_execens(model,model2,x_test,y_test,coords_test,minimum_out,maximum_out,min
         if flag_y_test_norm_eval[i,0]==0: #only m1
             temporary_x_eval=x_test[i,0:varnum]
             m1_x_eval=np.row_stack((m1_x_eval,temporary_x_eval))#
-            m1_y_eval = np.append(m1_y_eval, y_test[i, 0])
+            try:
+                m1_y_eval = np.append(m1_y_eval, y_test[i, 0])
+            except:
+                m1_y_eval = np.append(m1_y_eval, y_test[i])
             #drag coordinate info
             m1_data_coords=np.row_stack((m1_data_coords,coords_test[i, :]))
     if m1_x_eval.size > 0:
@@ -126,7 +127,10 @@ def f_execens(model,model2,x_test,y_test,coords_test,minimum_out,maximum_out,min
         if flag_y_test_norm_eval[i,0]==1: #intersection, or m2 (needs to be defined again)
             temporary_x_eval=x_test[i,0:varnum]
             mb_x_eval=np.row_stack((mb_x_eval,temporary_x_eval))#
-            mb_y_eval = np.append(mb_y_eval, y_test[i, 0])
+            try:
+                mb_y_eval = np.append(mb_y_eval, y_test[i, 0])
+            except:
+                mb_y_eval = np.append(mb_y_eval, y_test[i])
             #drag coordinate info
             mb_data_coords=np.row_stack((mb_data_coords,coords_test[i, :]))
             #we need to also save the index for compatibility
@@ -138,7 +142,7 @@ def f_execens(model,model2,x_test,y_test,coords_test,minimum_out,maximum_out,min
        predicted_mb2=model2.predict(x_eval_mb2)
        predicted_mb2_scaled=predicted_mb2*(max_m2-min_m2)+min_m2
        #flag samples for m2
-       foo,y_norm_eval_flag_m2=clamp_vector(predicted_mb2,max_m1,max_m2,np.zeros_like(predicted_mb2))
+       foo,y_norm_eval_flag_m2=clamp_vector(predicted_mb2_scaled,max_m1,max_m2,np.zeros_like(predicted_mb2_scaled))
        for i in range(0,size1):
            #important, indexes compatibility 
            i_flagm2=index_flagm2[i]
@@ -147,7 +151,10 @@ def f_execens(model,model2,x_test,y_test,coords_test,minimum_out,maximum_out,min
                if y_norm_eval_flag_m2[i_flagm2_int,0]==-1: #real intersection
                    temporary_x_eval=x_test[i,0:varnum]
                    mi_x_eval=np.row_stack((mi_x_eval,temporary_x_eval))#
-                   mi_y_eval = np.append(mi_y_eval, y_test[i, 0])
+                   try:
+                       mi_y_eval = np.append(mi_y_eval, y_test[i, 0])
+                   except:
+                       mi_y_eval = np.append(mi_y_eval, y_test[i])    
                    #drag coordinate info
                    mi_data_coords=np.row_stack((mi_data_coords,coords_test[i, :]))
        if mi_x_eval.size > 0:
@@ -163,7 +170,7 @@ def f_execens(model,model2,x_test,y_test,coords_test,minimum_out,maximum_out,min
             predicted_mi2_scaled=predicted_mi2*(max_m2-min_m2)+min_m2
             if predict_both_models:
                 #use both models
-                predicted_mi_scaled=0.6*predicted_mi1_scaled+0.4*predicted_mi2_scaled 
+                predicted_mi_scaled=0.5*predicted_mi1_scaled+0.5*predicted_mi2_scaled 
             else:
                 predicted_mi_scaled=predicted_mi2_scaled #use just m2
        else:
@@ -179,7 +186,10 @@ def f_execens(model,model2,x_test,y_test,coords_test,minimum_out,maximum_out,min
             if y_norm_eval_flag_m2[i_flagm2_int,0]>-1: #only m2
                 temporary_x_eval=x_test[i,0:varnum]
                 m2_x_eval=np.row_stack((m2_x_eval,temporary_x_eval))#
-                m2_y_eval = np.append(m2_y_eval, y_test[i, 0])
+                try:
+                    m2_y_eval = np.append(m2_y_eval, y_test[i, 0])
+                except:
+                    m2_y_eval = np.append(m2_y_eval, y_test[i])
                 #drag coordinate info
                 m2_data_coords=np.row_stack((m2_data_coords,coords_test[i, :]))
     if m2_x_eval.size > 0:
