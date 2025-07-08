@@ -73,8 +73,8 @@ def given_tile_geometry_find_nodes(tile_geometry, sword_files, latlon_file):
     # time.wait(500)
 
     node_ids_reach_ids_lat_lons =  list(zip(sentinal_tiles['nodeid'], sentinal_tiles['reachid'], [(i.x, i.y) for i in sentinal_tiles['geometry']]))
-    print('latlon file provided...')
-    print('here are some example node points...', all_node_lat_lons[:5])
+    # print('latlon file provided...')
+    # print('here are some example node points...', all_node_lat_lons[:5])
         
     # else:
     #     # for sword_filepath in sword_files:
@@ -148,7 +148,7 @@ def load_bands_to_memory(tile:str, run_location:str):
         if run_location == 'aws':
             full_s3_band_path = full_s3_band_path.replace(http_prefix, s3_prefix)
         # full_s3_band_path = full_s3_band_path.replace('protected', 'public')
-        print('here is path', full_s3_band_path)
+        # print('here is path', full_s3_band_path)
         # hls_da = rio.open(full_s3_band_path, chuncks=True)
         # sp.run(['wget', full_s3_band_path, "-P", "/data/input/ssc/tmp"])
 
@@ -171,7 +171,8 @@ def load_bands_to_memory(tile:str, run_location:str):
         if cloud_cover > 50:
             print(f'Cloud cover too high for tile at {cloud_cover}%...')
             print('exiting...')
-            exit()
+            # exit()
+            raise ValueError(f'Cloud cover too high for tile at {cloud_cover}%...')
 
 
     
@@ -200,6 +201,7 @@ def get_creds_to_env():
         creds['pass'] = ssm.get_parameter(Name=f'{prefix}-lpdaac-password', WithDecryption=True)['Parameter']['Value']
     except KeyError as e:
         print('Using local .netrc file; this needs to be created prior to running')
+        print('Here is why we are not using the netrc', e)
     except botocore.exceptions.ClientError as e:
         raise e
 
@@ -222,9 +224,10 @@ def login_to_s3():
         temp_creds_req = temp_creds_req.json()
     except Exception as e:
         print(e)
-        print('temp creds request failed', temp_creds_req)
-        print('here is raw response for bugfixing...', temp_creds_req.content)
-        exit()
+        print('temp creds request failed', temp_reds_req)
+        # print('here is raw response for bugfixing...', temp_creds_req.content)
+        # exit()
+        raise ValueError('temp creds request failed', temp_reds_req)
     
 
     session = boto3.Session(aws_access_key_id=temp_creds_req['accessKeyId'], 
@@ -272,7 +275,7 @@ def input(indir, index_to_run:int, hls_s3_json_filename:str , sentinel_shapefile
 
     if latlon_file is not None:
         
-        tile = list(json_data[index_to_run].keys())[0]
+        tile = list(json_data.keys())[index_to_run]
         
         # all_tiles_in_memory, l_or_s, tile_code, cloud_cover, date
         all_bands_in_memory, l_or_s, tile_code, cloud_cover, date = load_bands_to_memory(tile = tile, run_location = run_location)
@@ -290,7 +293,7 @@ def input(indir, index_to_run:int, hls_s3_json_filename:str , sentinel_shapefile
         node_ids_reach_ids_lat_lons = given_tile_geometry_find_nodes(tile_geometry, all_swords, latlon_file)
     
     else:
-        tile = list(json_data[index_to_run].keys())[0]
+        tile = list(json_data.keys())[index_to_run]
         
         # all_tiles_in_memory, l_or_s, tile_code, cloud_cover, date
         all_bands_in_memory, l_or_s, tile_code, cloud_cover, date = load_bands_to_memory(tile = tile, run_location = run_location)
@@ -298,7 +301,7 @@ def input(indir, index_to_run:int, hls_s3_json_filename:str , sentinel_shapefile
         # parse filename for tile code and filename for return
         tile_filename = os.path.basename(tile)
         
-        tile_reaches = json_data[index_to_run][tile]
+        tile_reaches = json_data[tile]
         
         
         if reaches_of_interest_path is not None:
@@ -314,12 +317,14 @@ def input(indir, index_to_run:int, hls_s3_json_filename:str , sentinel_shapefile
             
         if len(overlapping_reaches) == 0:
             print('no reaches found in tile, exiting...')
-            exit()
+            # exit()
+            raise ValueError('no reaches found in tile, exiting...')
             
                     
         sword_data = load_correct_sword(a_reach = str(overlapping_reaches[0]), sword_dir = sword_dir)
         node_ids_reach_ids_lat_lons = given_reach_find_nodes(overlapping_reaches = overlapping_reaches, sword_data = sword_data)
     # print(node_ids_reach_ids_lat_lons, 'here are points')
+    node_ids_reach_ids_lat_lons = node_ids_reach_ids_lat_lons[:4]
 
     # return bands in memory for preprocessing, and processing targets
     return all_bands_in_memory, node_ids_reach_ids_lat_lons, tile_filename, l_or_s, tile_code, cloud_cover, date

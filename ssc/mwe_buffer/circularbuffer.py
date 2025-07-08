@@ -12,11 +12,11 @@ mask[:] = numpy.nan
 number_points=0
 for i in range(0,radius_mask*2+1):
     for j in range(0,radius_mask*2+1):
-        print(i)
+        # print(i)
         xmap=i-10+0.5
         ymap=j-10+0.5
         radius_inner=xmap*xmap+ymap*ymap
-        print(radius_inner)
+        # print(radius_inner)
         if radius_inner < radius_mask*radius_mask:
             mask[i,j]=1.0 #numpy.nan
             number_points=number_points+1

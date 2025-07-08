@@ -42,7 +42,7 @@ def get_model(args, tasks_outputs, num_inp_feats=3):
 			if task in args.tasks:
 				selected_tasks_outputs[task] = task_output
 		from ssc.multitasking_vision_model_functions.models import MultiTaskModel
-		logger.debug(f"backbone_channels: {backbone_channels}")
+		# logger.debug(f"backbone_channels: {backbone_channels}")
 		heads = torch.nn.ModuleDict({task: get_head(args.head, backbone_channels, task_output) for task, task_output in zip(args.tasks, selected_tasks_outputs.values())})
 		model = MultiTaskModel(backbone, heads, args.tasks)
 

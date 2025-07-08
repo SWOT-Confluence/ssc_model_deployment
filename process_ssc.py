@@ -68,6 +68,19 @@ sudo docker run -v /media/travis/work/data/mnt/input:/data/input -v /home/travis
 #                             -i 0
 
 
+# # Verify june26
+# sudo docker run -v /mnt/input:/data/input -v /home/ec2-user/:/root/ ssc_deploy \
+#     -j /data/input/global_HLS_filtered_plus_minus_1_day/af_hls_list_chunk_5_time_343_plus_minus_one_day.json \
+#         -o /data/input/ssc_june_26/results \
+#             -r reaches.json \
+#                 -d /data/input \
+#                     --ckpt_path /data/input/ssc/models/model_static_files/rangel_checks/multitask_ckpts/deeplabv3p_distrib.pth.tar \
+#                           --ann_model_dir /data/input/ssc/models/model_static_files/ \
+#                             -i 0
+
+
+# sudo docker run -v /mnt/input:/data/input -v /home/ec2-user/:/root/ ssc_deploy     -j /data/input/global_HLS_filtered_plus_minus_1_day_compressed_no_dupes  
+    #    -o /data/input/ssc_june_26/results                  -d /data/input                     --ckpt_path /data/input/ssc/models/model_static_files/rangel_checks/multitask_ckpts/deeplabv3p_distrib.pth.tar                           --ann_model_dir /data/input/ssc/models/model_static_files/final_model_static_files                             -i 2 -c > output.log 2>&1
 # Standard imports
 import datetime
 import argparse
@@ -77,6 +90,7 @@ import glob
 import json
 import sys
 import logging
+from collections import defaultdict
 
 # Local imports
 import ssc.input
@@ -108,7 +122,8 @@ def create_args():
     arg_parser.add_argument("-j",
                             "--hls_s3_json_filename",
                             type=str,
-                            help="Filename of JSON file with list S3 paths to HLS tiles")
+                            default='foo',
+                            help="Filename of JSON file with list S3 paths to HLS tiles, or the directory for HLS files if chunking")
     
     arg_parser.add_argument("-d",
                             "--indir",
@@ -168,12 +183,18 @@ def create_args():
     arg_parser.add_argument('--ann_model_dir', 
                             type=str,
                             help='directory of ann model',
-                            default= '/mnt/input/ssc/models/model_static_files/nd_20250430')
+                            default= '/mnt/input/ssc/models/model_static_files/nd_20250430'),
 
     arg_parser.add_argument('--run_location', 
                             type=str,
                             help='Indicates where we are running to define the tile link prefix',
-                            default= 'aws')
+                            default= 'aws'),    
+    
+    
+    arg_parser.add_argument('-c',
+                            '--chunk_processing', 
+                            action='store_true',
+                            help='Passing this arg allows you to process whole files instead of one file parallel by tile')
 
     return arg_parser
 
@@ -202,6 +223,7 @@ def main():
     buffersize = args.buffersize
     latlon_file = args.latlon
     out_dir = args.outdir
+    chunk_processing = args.chunk_processing
     run_location = args.run_location
     ann_model_dir = args.ann_model_dir
     reaches_of_interest_path = args.reaches_of_interest_path
@@ -210,14 +232,8 @@ def main():
     ssc_files = glob.glob(os.path.join(indir, 'ssc', '*'))
     # logging.info(all_files)
 
-    """
-    directory
-    - input
-        -ssc
-            -Sentinel-2-Shapefile-Index/sentinel_2_index_shapefile.shp
-    - ssc
-        ?
-    """
+    fail_log = []
+
     #static paths
     sentinel_shapefile_filepath = os.path.join(indir, 'ssc/Sentinel-2-Shapefile-Index/sentinel_2_index_shapefile.shp')
     # if not os.path.exists(sentinel_shapefile_filepath):
@@ -226,162 +242,162 @@ def main():
     if index_to_run == -235:
         index_to_run = int(os.environ.get("AWS_BATCH_JOB_ARRAY_INDEX"))
         
-    
-
-
-    # Input
-    logging.info('Running input...')
-    # all_bands_in_memory, node_ids_reach_ids_lat_lons, tile_filename, l_or_s, tile_code, cloud_cover, date
-    all_bands_in_memory, node_ids_reach_ids_lat_lons, tile_filename, l_or_s, tile_code, cloud_cover, date = ssc.input.input(indir=indir,
-                                                        index_to_run=index_to_run, 
-                                                        hls_s3_json_filename=hls_s3_json_filename,
-                                                        sentinel_shapefile_filepath=sentinel_shapefile_filepath, 
-                                                        latlon_file=latlon_file,
-                                                        run_location=run_location,
-                                                        reaches_of_interest_path = reaches_of_interest_path)
-
-
-    # if latlon_file is not None:
-
-
-    #     with open(latlon_file) as json_file:
-    #         node_ids_reach_ids_lat_lons = json.load(json_file)
-            
-    #     latlon_file_provided = True
-    # else:
-    #     latlon_file_provided = False
-    
-    # logging.info('is provided', latlon_file_provided)
-    
-    logging.info('Input Complete.')
-    cnt = 0
-    feature_dict = {}
-
-    if len(node_ids_reach_ids_lat_lons) == 0:
-        logging.info('NO NODES FOUND IN TILE, EXITING...')
-        sys.exit()
+    if chunk_processing:
+        hls_s3_json_filename = sorted(glob.glob(os.path.join(hls_s3_json_filename, '*')))[index_to_run]
+        # hls_s3_json_filename = os.path.basename(hls_s3_json_filepath)
+        with open(hls_s3_json_filename) as f:
+            json_data = json.load(f)
+        index_list = list(range(len(json_data)))
     else:
-        logging.info('Running ssc prediction on %s nodes.', len(node_ids_reach_ids_lat_lons))
+        index_list = [index_to_run]
+
+    for current_index in index_list[:1]:
+        # Input
+        logging.info(f'Running input... on index {current_index}')
+        try:
+            # all_bands_in_memory, node_ids_reach_ids_lat_lons, tile_filename, l_or_s, tile_code, cloud_cover, date
+            all_bands_in_memory, node_ids_reach_ids_lat_lons, tile_filename, l_or_s, tile_code, cloud_cover, date = ssc.input.input(indir=indir,
+                                                                index_to_run=current_index, 
+                                                                hls_s3_json_filename=hls_s3_json_filename,
+                                                                sentinel_shapefile_filepath=sentinel_shapefile_filepath, 
+                                                                latlon_file=latlon_file,
+                                                                run_location=run_location,
+                                                                reaches_of_interest_path = reaches_of_interest_path)
+
+            # if latlon_file is not None:
 
 
-    
-    # if latlon_file_provided:
-    #     all_node_data = [(i.split(',')[1],i.split(',')[0]) for i in node_ids_reach_ids_lat_lons]
-    # else:
-    #     pointlat = node_data[2][1]
-    #     pointlon = node_data[2][0]
-    
-    #     all_node_data = 
-   
-    all_lats = [i[2][1] for i in node_ids_reach_ids_lat_lons]
-    all_lons = [i[2][0] for i in node_ids_reach_ids_lat_lons]
-    all_mgrs_flags = []
-        
-    for node_data in node_ids_reach_ids_lat_lons:
-        logging.info('processing node %s of %s %s', cnt, len(node_ids_reach_ids_lat_lons), node_data)
-        cnt += 1
-        # if latlon_file_provided:
-        #     node_data = node_data.split(',')
-        #     node_data = ['foo', 'foo', (node_data[1], node_data[0])]
-            
-        # logging.info(node_data, 'node_data')
-        pointlat = node_data[2][1]
-        pointlon = node_data[2][0]
-        node_id = node_data[0]
-        reach_id = node_data[1]
-
-        # Crop all bands to load them into memory for prediction
-        cropped_bands_in_memory = crop_bands(all_bands_in_memory = all_bands_in_memory,
-                                                                    node_data = node_data,
-                                                                    filename = tile_filename, 
-                                                                    buffersize = buffersize,
-                                                                    l_or_s = l_or_s)
-        
-        if len(cropped_bands_in_memory) >= 1:
-
-            try:
-                logging.info('Trying to print cropped band from main script. Here is the cropped band')
-                # logging.info(cropped_bands_in_memory[0])
-            except:
-                logging.info('failed to print...')
-
-
-            # Multitasking model feature generation
-            try:
-                features_for_ann_model = multitask_model_deploy(all_bands_in_memory=cropped_bands_in_memory,
-                                                            node_data = node_data,
-                                                            ckpt_path=ckpt_path, 
-                                                            backbone=backbone, 
-                                                            is_distrib=is_distrib,
-                                                            l_or_s = l_or_s)
-
-                features_for_ann_model['reach_id'] = reach_id
-                features_for_ann_model['node_id'] = node_id
-                
-                mgrs_flag = ssc.input.mgrs_flag_generation(tile_code, node_data)
-                all_mgrs_flags.append(mgrs_flag)
-
-            except Exception as e:
-                logging.info('Node failed...')
-                logging.info(e)
-                continue
-            # print('')
-            logging.info('features found', features_for_ann_model)
-            # print('')
-            for feature in list(features_for_ann_model.keys()):
-                # logging.info('feature: %s', feature)
-                # logging.info('Data %s', features_for_ann_model[feature])
-                # logging.info('type %s', type(features_for_ann_model[feature]))
-                if features_for_ann_model[feature] is not None:
-                    try:
-                        prev_data = feature_dict[feature]
-                        prev_data.extend([features_for_ann_model[feature]])
-                        new_data = prev_data
-                        # logging.info('new data one %s', new_data)
-                    except Exception as e:
-                        new_data = [features_for_ann_model[feature]]
-                        # logging.info('new data two %s', new_data)
-                        logging.info(e)
-                else:
-                    prev_data = feature_dict[feature]
-                    prev_data.extend([-9999])
-                    new_data = prev_data
-                    # logging.info('found nan %s', new_data)
+            #     with open(latlon_file) as json_file:
+            #         node_ids_reach_ids_lat_lons = json.load(json_file)
                     
-                feature_dict[feature] = new_data
-                # logging.info('feature dict %s', feature_dict)
+            #     latlon_file_provided = True
+            # else:
+            #     latlon_file_provided = False
+            
+            # logging.info('is provided', latlon_file_provided)
+            
+            logging.info(f'Input Complete {tile_filename}')
+            cnt = 0
+            feature_dict = defaultdict(list)
+
+            if len(node_ids_reach_ids_lat_lons) == 0:
+                logging.info('NO NODES FOUND IN TILE, EXITING...')
+                raise ValueError('NO NODES FOUND IN TILE, EXITING...')
+            else:
+                logging.info('Running ssc prediction on %s nodes.', len(node_ids_reach_ids_lat_lons))
+
+
+            
+            # if latlon_file_provided:
+            #     all_node_data = [(i.split(',')[1],i.split(',')[0]) for i in node_ids_reach_ids_lat_lons]
+            # else:
+            #     pointlat = node_data[2][1]
+            #     pointlon = node_data[2][0]
+            
+            #     all_node_data = 
+        
+            all_lats = [i[2][1] for i in node_ids_reach_ids_lat_lons]
+            all_lons = [i[2][0] for i in node_ids_reach_ids_lat_lons]
+            all_mgrs_flags = []
+                
+            for node_data in node_ids_reach_ids_lat_lons:
+                logging.info('processing node %s of %s', cnt, len(node_ids_reach_ids_lat_lons))
+                cnt += 1
+                # if latlon_file_provided:
+                #     node_data = node_data.split(',')
+                #     node_data = ['foo', 'foo', (node_data[1], node_data[0])]
+                    
+                # logging.info(node_data, 'node_data')
+                pointlat = node_data[2][1]
+                pointlon = node_data[2][0]
+                node_id = node_data[0]
+                reach_id = node_data[1]
+
+                # Crop all bands to load them into memory for prediction
+                cropped_bands_in_memory = crop_bands(all_bands_in_memory = all_bands_in_memory,
+                                                                            node_data = node_data,
+                                                                            filename = tile_filename, 
+                                                                            buffersize = buffersize,
+                                                                            l_or_s = l_or_s)
+                
+                if len(cropped_bands_in_memory) >= 1:
+
+                    # try:
+                    #     logging.info('Trying to print cropped band from main script. Here is the cropped band')
+                    #     # logging.info(cropped_bands_in_memory[0])
+                    # except:
+                    #     logging.info('failed to print...')
+
+
+                    # Multitasking model feature generation
+                    try:
+                        features_for_ann_model = multitask_model_deploy(all_bands_in_memory=cropped_bands_in_memory,
+                                                                    node_data = node_data,
+                                                                    ckpt_path=ckpt_path, 
+                                                                    backbone=backbone, 
+                                                                    is_distrib=is_distrib,
+                                                                    l_or_s = l_or_s)
+
+                        features_for_ann_model['reach_id'] = reach_id
+                        features_for_ann_model['node_id'] = node_id
+                        
+                        mgrs_flag = ssc.input.mgrs_flag_generation(tile_code, node_data)
+                        all_mgrs_flags.append(mgrs_flag)
+
+                    except Exception as e:
+                        logging.info('Node failed...')
+                        logging.info(e)
+                        continue 
+
+                    for feature, value in features_for_ann_model.items():
+                        if value is None:
+                            feature_dict[feature].append(-9999)
+                        elif isinstance(value, list):
+                            feature_dict[feature].extend(value)  # or append if you want it nested
+                        else:
+                            feature_dict[feature].append(value)
 
 
 
-    # logging.info(feature_dict)
 
-    # logging.info(feature_dict.values())
-    logging.info('Saving multitask model outputs...')
-    # def feature_output(feature_dict, out_dir, cloud_cover, mgrs_flag, date, node_data):
+            # logging.info(feature_dict)
 
-    preprocessed_data_df = feature_output(feature_dict=feature_dict, out_dir = out_dir, cloud_cover = cloud_cover, \
-        mgrs_flag = all_mgrs_flags, date = date, l_or_s = l_or_s, args=args, lat = all_lats, lon = all_lons, filename = tile_filename)
+            # logging.info(feature_dict.values())
+            logging.info('Saving multitask model outputs...')
+            # def feature_output(feature_dict, out_dir, cloud_cover, mgrs_flag, date, node_data):
 
-
-    
-    model_outputs_df = ann_ssc_model(df_hlsprocessed_raw = preprocessed_data_df, model_dir = ann_model_dir)
-    # logging.info(model_outputs)
-    
-    # logging.info('prediction %s', model_outputs)
-
-    # ssc_preprocessing(indir = indir,
-    #                 save_masks_bool=save_masks_bool,
-    #                 max_thresh_for_multitasking_vision_model_preprocessing = max_thresh_for_multitasking_vision_model_preprocessing)
-
-    # Output
-    # model_outputs_df.to_csv(os.path.join(out_dir, os.path.basename(tile_filename'testing_ann.csv'))
-    model_outputs_df.to_csv(os.path.join(out_dir,tile_filename.replace('.tar','') + '.csv'))
-    
+            preprocessed_data_df = feature_output(feature_dict=feature_dict, out_dir = out_dir, cloud_cover = cloud_cover, \
+                mgrs_flag = all_mgrs_flags, date = date, l_or_s = l_or_s, args=args, lat = all_lats, lon = all_lons, filename = tile_filename)
 
 
+            
+            model_outputs_df = ann_ssc_model(df_hlsprocessed_raw = preprocessed_data_df, model_dir = ann_model_dir)
+            # logging.info(model_outputs)
+            
+            # logging.info('prediction %s', model_outputs)
 
-    end = datetime.datetime.now()
-    logging.info(f"Execution time: %s", end - start)
-    
+            # ssc_preprocessing(indir = indir,
+            #                 save_masks_bool=save_masks_bool,
+            #                 max_thresh_for_multitasking_vision_model_preprocessing = max_thresh_for_multitasking_vision_model_preprocessing)
+
+            # Output
+            # model_outputs_df.to_csv(os.path.join(out_dir, os.path.basename(tile_filename'testing_ann.csv'))
+            model_outputs_df.to_csv(os.path.join(out_dir,tile_filename.replace('.tar','') + '.csv'))
+            print(os.path.join(out_dir,tile_filename.replace('.tar','') + '.csv'), model_outputs_df)
+        
+        except Exception as e:
+            print('failed...', current_index, e)
+            fail_log.append(['failed...', str(current_index), str(e)])
+            with open("/data/input/ssc_june_26/results/fail_log.json", "w") as f:
+                for row in fail_log:
+                    f.write(json.dumps(row) + "\n")
+
+
+
+        end = datetime.datetime.now()
+        logging.info(f"Execution time: %s", end - start)
+
+    print('-------------------FAIL LOG HERE')
+    print(fail_log)
 if __name__ == "__main__":
     main()

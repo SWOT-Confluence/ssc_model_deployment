@@ -150,14 +150,14 @@ def get_masks(all_bands_in_memory, ckpt_path, backbone, is_distrib=True):
     }
     model = get_model(opt, tasks_outputs=tasks_outputs, num_inp_feats=num_inp_feats)
 
-    logger.debug(f"Loading weights from {ckpt_path}")
+    # logger.debug(f"Loading weights from {ckpt_path}")
     checkpoint = torch.load(ckpt_path, map_location=torch.device('cpu'))
     if is_distrib:
         new_ckpt = {k.split("module.")[-1]:v for k,v in checkpoint["state_dict"].items()}
         checkpoint["state_dict"] = new_ckpt
     tmp = model.load_state_dict(checkpoint["state_dict"], strict=True)
-    logger.debug(f"After loading ckpt: {tmp}")
-    logger.debug(f"Checkpoint epoch: {checkpoint['epoch']}. best_perf: {checkpoint['best_performance']}")
+    # logger.debug(f"After loading ckpt: {tmp}")
+    # logger.debug(f"Checkpoint epoch: {checkpoint['epoch']}. best_perf: {checkpoint['best_performance']}")
     if backbone == "deeplabv3p":
         optim_threshes = {     # for DeepLabv3+
             "water_mask": 0.2,
@@ -187,7 +187,7 @@ def get_masks(all_bands_in_memory, ckpt_path, backbone, is_distrib=True):
     # print(inp_data)
     # for i in range(10):
     #     print(inp_data[0][0:10], 'these should not be the same')
-    print('shape of one', inp_data[0].shape) # this should be (512, 512, 6) select the first six
+    # print('shape of one', inp_data[0].shape) # this should be (512, 512, 6) select the first six
     if inp_data[0].shape != (512,512):
         raise ValueError('Shape of data is not 515, 512')
 
@@ -205,7 +205,7 @@ def get_masks(all_bands_in_memory, ckpt_path, backbone, is_distrib=True):
         test_pred, feat = model(inp_data, feat=True)
         end_time = time.time()
         execution_time = end_time - start_time
-        print('model ran in ', execution_time)
+        # print('model ran in ', execution_time)
         
     masks = {}
     for t in tasks_outputs.keys():
@@ -265,7 +265,7 @@ def multitask_model_deploy(all_bands_in_memory, node_data, ckpt_path, backbone, 
 
     assert len(model_bands_in_memory) == len(model_bands[l_or_s])
 
-    print('found the correct number of bands')
+    # print('found the correct number of bands')
 
     masks = get_masks(all_bands_in_memory=model_bands_in_memory, ckpt_path=ckpt_path, backbone=backbone, is_distrib=(is_distrib==1))
 

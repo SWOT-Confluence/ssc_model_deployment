@@ -58,10 +58,10 @@ def crop_around_index(array, index, fill_value=-9999):
         top_pad=0
         bottom_pad=0
         if cookie_start_top < 0:
-            print('cookie_start_top<0, cookie_start_top='+str(cookie_start_top))
+            # print('cookie_start_top<0, cookie_start_top='+str(cookie_start_top))
             top_pad= 0-cookie_start_top
         if cookie_end_bottom > array.shape[0]:
-            print('cookie_end_bottom > array.shape[0], cookie_end_bottom='+str(cookie_end_bottom)+' array.shape[0]='+str(array.shape[0]))
+            # print('cookie_end_bottom > array.shape[0], cookie_end_bottom='+str(cookie_end_bottom)+' array.shape[0]='+str(array.shape[0]))
             bottom_pad=cookie_end_bottom-array.shape[0]
         if cookie_start_left<0:
             left_pad= cookie_start_left
@@ -97,12 +97,12 @@ def crop_bands(all_bands_in_memory, node_data, filename, buffersize, l_or_s):
     # pointlat=40.23028
     
     # siteid='MNPCA-69-0249-00-102' #the unique index of the site, needed to save the files correctly.
-    print('all bands before cropping')
+    # print('all bands before cropping')
 
     pointlat = node_data[2][1]
     pointlon = node_data[2][0]
     
-    print(pointlat, pointlon)
+    # print(pointlat, pointlon)
     siteid = '_'.join([str(node_data[1]), str(node_data[0])])
     pathtocropped='.'
 
@@ -111,17 +111,17 @@ def crop_bands(all_bands_in_memory, node_data, filename, buffersize, l_or_s):
     # buffersize=500 #500 m
     
     actual_filename, path_to_file, tile, date, time, source=extract_info_HLS_filename(filename)
-    print(tile, date, time)
+    # print(tile, date, time)
     
     #now, reproject this into the same grid of the HLS.
 
 
     #get location and size of the file
     GT_input = all_bands_in_memory[0].rio.transform()
-    print(GT_input)
+    # print(GT_input)
     
     #produce area around in situ to be saved
-    print('this is what is going in', float(pointlat), float(pointlon))
+    # print('this is what is going in', float(pointlat), float(pointlon))
     (eastingpt, northingpt, zone_number, zone_letter)=utm.from_latlon(float(pointlat), float(pointlon))
     
     if zone_letter in 'NPQRSTUVWX':
@@ -131,14 +131,14 @@ def crop_bands(all_bands_in_memory, node_data, filename, buffersize, l_or_s):
     
     crs = CRS.from_string(f'+proj=utm +zone={zone_number} +{zone_desig}')
     wsg = crs.to_authority()
-    print('northing and easting before reproj', eastingpt, northingpt)
+    # print('northing and easting before reproj', eastingpt, northingpt)
     transformer = pyproj.Transformer.from_crs(wsg, all_bands_in_memory[0].rio.crs, always_xy=True)
     eastingpt, northingpt = transformer.transform(eastingpt, northingpt)
-    print('norhting and easting after reproj', eastingpt, northingpt)
+    # print('norhting and easting after reproj', eastingpt, northingpt)
 
-    print('zone sample zone number and letter', zone_number, zone_letter)
+    # print('zone sample zone number and letter', zone_number, zone_letter)
     
-    print('tile projection', all_bands_in_memory[0].rio.crs)
+    # print('tile projection', all_bands_in_memory[0].rio.crs)
 
     
     minx_is=eastingpt-buffersize
@@ -153,7 +153,7 @@ def crop_bands(all_bands_in_memory, node_data, filename, buffersize, l_or_s):
         (maxx_is, miny_is),
         (miny_is, minx_is)
     ]   
-    print('cropping images, new bounds: '+str(new_bounds))
+    # print('cropping images, new bounds: '+str(new_bounds))
     # dest, src, options
 
     
@@ -186,29 +186,29 @@ def crop_bands(all_bands_in_memory, node_data, filename, buffersize, l_or_s):
     # col = int(col)
     # row = int(row)
 
-    print('this is the row and column we are trying to crop around...', row,col)
+    # print('this is the row and column we are trying to crop around...', row,col)
     # given pixel coords get geo cords
     # print('here is the coordinate at the center of the whole image...', all_bands_in_memory[0].xy(all_bands_in_memory[0].height // 2, all_bands_in_memory[0].width // 2))
     nx = all_bands_in_memory[0].shape[1]
     ny = all_bands_in_memory[0].shape[0]
-    print(all_bands_in_memory[0])
-    print('here are image bounds', nx, ny)
+    # print(all_bands_in_memory[0])
+    # print('here are image bounds', nx, ny)
     
     idx_left  = max(col - width, 0)
     idx_right = min(col + width + 1, nx - 1)
     if idx_right == nx - 1:  # When the last index in x-dimension is selected
-        print('out of x dim')
+        # print('out of x dim')
         idx_right = None
-    else:
-        print('in x dim')
+    # else:
+    #     print('in x dim')
         
     idx_bot   = max(row - width, 0) 
     idx_top   = min(row + width + 1, ny - 1)
     if idx_top == ny - 1:    # When the last index in y-dimension is selected
-        print('out of y dem')
+        # print('out of y dem')
         idx_top = None
-    else:
-        print('in y dem')
+    # else:
+    #     print('in y dem')
     # Output
     
         
@@ -235,7 +235,8 @@ def crop_bands(all_bands_in_memory, node_data, filename, buffersize, l_or_s):
                 print('Cropping failed...')
 
                 print(e)
-                exit()
+                # exit()
+                raise ValueError(print('Cropping failed...'))
             # print('here is a view', view)
             cropped_bands_in_memory.append(view)
 
@@ -268,10 +269,11 @@ def crop_bands(all_bands_in_memory, node_data, filename, buffersize, l_or_s):
             # print(mask)
 
         except Exception as e:
-           print('Could crop HLS, band number: ', str(iband))
+        #    print('Could crop HLS, band number: ', str(iband))
            print(e)
            traceback.print_exc()
-           exit()
+        #    exit()
+           raise    ValueError('Could crop HLS, band number: ', str(iband))       
     
     # #8A Band
     # iband=iband+1

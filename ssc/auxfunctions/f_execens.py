@@ -9,7 +9,7 @@ Separate function, executes ensemble model and returns values
 import numpy as np
 
 #from auxfunctions.f_execens import f_execens
-from auxfunctions.clamp_vector import clamp_vector
+from ssc.auxfunctions.f_clamp import clamp_vector
 
 def f_execens_separated(model,model2,x_test,y_test,coords_test,minimum_out,maximum_out,min_m2,max_m2,min_input_m1,max_input_m1,min_input_m2,max_input_m2,maxval_cut,varnum):
     #start by running m1
@@ -77,6 +77,10 @@ def f_execens(model,model2,x_test,y_test,coords_test,minimum_out,maximum_out,min
     min_m1=minimum_out
     #print(max_m1)
     predict_both_models=True
+
+    x_test = np.array(x_test, dtype=np.float32)
+    min_input_m1 = np.array(min_input_m1, dtype=np.float32)
+    max_input_m1 = np.array(max_input_m1, dtype=np.float32)
     
     x_test_eval_m1=(x_test-min_input_m1)/(max_input_m1-min_input_m1)
     #predict based on m1
