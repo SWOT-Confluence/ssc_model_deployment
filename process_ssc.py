@@ -81,6 +81,9 @@ sudo docker run -v /media/travis/work/data/mnt/input:/data/input -v /home/travis
 
 # sudo docker run -v /mnt/input:/data/input -v /home/ec2-user/:/root/ ssc_deploy     -j /data/input/global_HLS_filtered_plus_minus_1_day_compressed_no_dupes  
     #    -o /data/input/ssc_june_26/results                  -d /data/input                     --ckpt_path /data/input/ssc/models/model_static_files/rangel_checks/multitask_ckpts/deeplabv3p_distrib.pth.tar                           --ann_model_dir /data/input/ssc/models/model_static_files/final_model_static_files                             -i 2 -c > output.log 2>&1
+
+# sudo docker run -v /mnt/validation/stats:/data/validation -v /mnt/input:/data/input -v /home/ec2-user/:/root/ ssc_deploy    --validation_dir /data/validation  -j /data/input/global_HLS_filtered_plus_minus_1_day_compressed_no_dupes         -o /data/input/ssc_june_26/results                  -d /data/input                     --ckpt_path /data/input/ssc/models/model_static_files/rangel_checks/multitask_ckpts/deeplabv3p_distrib.pth.tar                           --ann_model_dir /data/input/ssc/models/model_static_files/final_model_static_files                             -i 2 -c > output.log 2>&1
+
 # Standard imports
 import datetime
 import argparse
@@ -102,6 +105,7 @@ from ssc.output import feature_output
 # import cv_preprocessing, ssc_preprocessing
 # from ssc.multitasking_vision_model import multitasking_vision_model
 from ssc.ann_ssc_model import ann_ssc_model
+from ssc.calculate_sedflux import calculate_sedflux
 # from ssc.output import output
 
 logging.getLogger().setLevel(logging.INFO)
@@ -190,6 +194,9 @@ def create_args():
                             help='Indicates where we are running to define the tile link prefix',
                             default= 'aws'),    
     
+    arg_parser.add_argument('--validation_dir', 
+                            type=str,
+                            help='Path to the validation files which hold the FLPE consesus discharge for calculating sedflux'),
     
     arg_parser.add_argument('-c',
                             '--chunk_processing', 
@@ -227,6 +234,7 @@ def main():
     run_location = args.run_location
     ann_model_dir = args.ann_model_dir
     reaches_of_interest_path = args.reaches_of_interest_path
+    validation_dir = args.validation_dir
     # logging.info('all_files')
     all_files = glob.glob(os.path.join(indir, '*'))
     ssc_files = glob.glob(os.path.join(indir, 'ssc', '*'))
@@ -251,7 +259,7 @@ def main():
     else:
         index_list = [index_to_run]
 
-    for current_index in index_list[:1]:
+    for current_index in index_list:
         # Input
         logging.info(f'Running input... on index {current_index}')
         try:
@@ -262,7 +270,8 @@ def main():
                                                                 sentinel_shapefile_filepath=sentinel_shapefile_filepath, 
                                                                 latlon_file=latlon_file,
                                                                 run_location=run_location,
-                                                                reaches_of_interest_path = reaches_of_interest_path)
+                                                                reaches_of_interest_path = reaches_of_interest_path,
+                                                                validation_dir = validation_dir)
 
             # if latlon_file is not None:
 
@@ -382,6 +391,8 @@ def main():
 
             # Output
             # model_outputs_df.to_csv(os.path.join(out_dir, os.path.basename(tile_filename'testing_ann.csv'))
+            # final_outputs_for_tile = calculate_sedflux(model_outputs_df  = model_outputs_df, validation_dir = validation_dir)
+
             model_outputs_df.to_csv(os.path.join(out_dir,tile_filename.replace('.tar','') + '.csv'))
             print(os.path.join(out_dir,tile_filename.replace('.tar','') + '.csv'), model_outputs_df)
         

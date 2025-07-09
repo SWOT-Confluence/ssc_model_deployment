@@ -135,7 +135,7 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
     df_hlsprocessed['LorS'] = df_hlsprocessed['LorS'].replace(mapping)
     
     # empty output column
-    df_hlsprocessed['Value'] = 0
+    df_hlsprocessed['SSC'] = 0
     
     #dataframe_array=df_hlsprocessed.to_numpy()
     
@@ -164,7 +164,7 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
     ]
 
     
-    output_cols=['Value']#['tss_value']
+    output_cols=['SSC']#['tss_value']
     
     coords_cols= ['lat','lon']
     
@@ -253,7 +253,7 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
         # Create a df from truncated coords_obs
         df_coords_obs = pd.DataFrame(coords_obs_truncated, columns=['Latitude_trunc', 'Longitude_trunc'])
         df_coords_obs['SSC'] = y_modeled_zero
-        df_coords_obs['date']=df_hlsprocessed_raw['date']
+        # df_coords_obs['date']=df_hlsprocessed_raw['date']
         # Merge coords_obs with coords_reach on the truncated coordinates
         merged_data_coords = pd.merge(df_coords_obs, coords_reach_unique, on=['Latitude_trunc', 'Longitude_trunc'], how='left')
         # Extract the Discharge (reach IDs) for the matched coordinates
