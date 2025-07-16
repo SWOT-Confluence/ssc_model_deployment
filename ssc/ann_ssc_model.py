@@ -17,6 +17,7 @@ import os
 import sys
 import time
 from .auxfunctions.f_execens import f_execens
+import logging
 
 
 
@@ -119,11 +120,11 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
         # print(f"Pattern 'S30' found in file: {file_name}")
         df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B05', 'NA1') if 'B05' in x else x)
         df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B8A', 'B05') if 'B8A' in x else x)
-        df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B06', 'NA2') if 'B06' in x else x)
+        df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B06', 'NA2') if 'B06' in x else x)
         df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B11', 'B06') if 'B11' in x else x)
-        df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B07', 'NA3') if 'B07' in x else x)
+        df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B07', 'NA3') if 'B07' in x else x)
         df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B12', 'B07') if 'B12' in x else x)
-        df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B09', 'NA4') if 'B09' in x else x)
+        df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B09', 'NA4') if 'B09' in x else x)
         df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B10', 'B09') if 'B10' in x else x)
 
     elif "L" in df_hlsprocessed_raw['LorS'].unique():
@@ -133,6 +134,8 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
     
     mapping = {'L': 0, 'S': 1}
     df_hlsprocessed['LorS'] = df_hlsprocessed['LorS'].replace(mapping)
+
+    logging.info("after mappig", df_hlsprocessed['LorS'])
     
     # empty output column
     df_hlsprocessed['SSC'] = 0
@@ -247,9 +250,9 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
             [truncate_to_three_decimal_places(lat), truncate_to_three_decimal_places(lon)] for lat, lon in coords_obs
             ])
         # Truncate coords_reach dataframe's Latitude and Longitude columns to three decimal places
-        df_hlsprocessed_raw['Latitude_trunc'] = df_hlsprocessed_raw['lat'].apply(truncate_to_three_decimal_places)
-        df_hlsprocessed_raw['Longitude_trunc'] = df_hlsprocessed_raw['lon'].apply(truncate_to_three_decimal_places)
-        coords_reach_unique = df_hlsprocessed_raw.drop_duplicates(subset=['Latitude_trunc', 'Longitude_trunc'])
+        df_hlsprocessed['Latitude_trunc'] = df_hlsprocessed['lat'].apply(truncate_to_three_decimal_places)
+        df_hlsprocessed['Longitude_trunc'] = df_hlsprocessed['lon'].apply(truncate_to_three_decimal_places)
+        coords_reach_unique = df_hlsprocessed.drop_duplicates(subset=['Latitude_trunc', 'Longitude_trunc'])
         # Create a df from truncated coords_obs
         df_coords_obs = pd.DataFrame(coords_obs_truncated, columns=['Latitude_trunc', 'Longitude_trunc'])
         df_coords_obs['SSC'] = y_modeled_zero
@@ -274,6 +277,21 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
     #save to csv file
     #makecsvname=(path_save_results+'/'+'meancoords_SSConly'+'.csv')#
     #df_stacked.to_csv(makecsvname)
+
+    # Clean df
+
+    # Rename 'SSC_x' to 'SSC' if it exists
+    if 'SSC_x' in df_reordered.columns:
+        df_reordered.rename(columns={'SSC_x': 'SSC'}, inplace=True)
+
+    # Drop columns if they exist
+    columns_to_drop = ['SSC_y', 'Latitude_trunc', 'Longitude_trunc']
+    df_reordered.drop(columns=[col for col in columns_to_drop if col in df_reordered.columns], inplace=True)
+
+
+    mapping = {0:'L', 1:'S'}
+    df_reordered['LorS'] = df_reordered['LorS'].replace(mapping)
+
     # End the timer
     end_time = time.time()
 

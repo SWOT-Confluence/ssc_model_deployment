@@ -252,7 +252,7 @@ def login_to_s3():
 
 
 
-def input(indir, index_to_run:int, hls_s3_json_filename:str , sentinel_shapefile_filepath:str, latlon_file, run_location:str, reaches_of_interest_path:str, validation_dir):
+def input(indir, index_to_run:int, hls_s3_json_filename:str , sentinel_shapefile_filepath:str, latlon_file, run_location:str, reaches_of_interest_path:str):
     """
     function descripotion
     """
@@ -333,7 +333,7 @@ def input(indir, index_to_run:int, hls_s3_json_filename:str , sentinel_shapefile
         sword_data = load_correct_sword(a_reach = str(overlapping_reaches[0]), sword_dir = sword_dir)
         node_ids_reach_ids_lat_lons = given_reach_find_nodes(overlapping_reaches = overlapping_reaches, sword_data = sword_data)
     # print(node_ids_reach_ids_lat_lons, 'here are points')
-    # node_ids_reach_ids_lat_lons = node_ids_reach_ids_lat_lons[:4]
+    node_ids_reach_ids_lat_lons = node_ids_reach_ids_lat_lons[:4]
 
     # return bands in memory for preprocessing, and processing targets
     return all_bands_in_memory, node_ids_reach_ids_lat_lons, tile_filename, l_or_s, tile_code, cloud_cover, date

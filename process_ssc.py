@@ -194,9 +194,9 @@ def create_args():
                             help='Indicates where we are running to define the tile link prefix',
                             default= 'aws'),    
     
-    arg_parser.add_argument('--validation_dir', 
+    arg_parser.add_argument('--consensus_dir', 
                             type=str,
-                            help='Path to the validation files which hold the FLPE consesus discharge for calculating sedflux'),
+                            help='Path to the consensus files which hold the FLPE consesus discharge for calculating sedflux'),
     
     arg_parser.add_argument('-c',
                             '--chunk_processing', 
@@ -234,7 +234,7 @@ def main():
     run_location = args.run_location
     ann_model_dir = args.ann_model_dir
     reaches_of_interest_path = args.reaches_of_interest_path
-    validation_dir = args.validation_dir
+    consensus_dir = args.consensus_dir
     # logging.info('all_files')
     all_files = glob.glob(os.path.join(indir, '*'))
     ssc_files = glob.glob(os.path.join(indir, 'ssc', '*'))
@@ -270,8 +270,7 @@ def main():
                                                                 sentinel_shapefile_filepath=sentinel_shapefile_filepath, 
                                                                 latlon_file=latlon_file,
                                                                 run_location=run_location,
-                                                                reaches_of_interest_path = reaches_of_interest_path,
-                                                                validation_dir = validation_dir)
+                                                                reaches_of_interest_path = reaches_of_interest_path)
 
             # if latlon_file is not None:
 
@@ -372,16 +371,17 @@ def main():
             # logging.info(feature_dict)
 
             # logging.info(feature_dict.values())
-            logging.info('Saving multitask model outputs...')
+            
             # def feature_output(feature_dict, out_dir, cloud_cover, mgrs_flag, date, node_data):
+            # logging.info('HERE IS ANOTHER LS CHECK', l_or_s)
 
             preprocessed_data_df = feature_output(feature_dict=feature_dict, out_dir = out_dir, cloud_cover = cloud_cover, \
                 mgrs_flag = all_mgrs_flags, date = date, l_or_s = l_or_s, args=args, lat = all_lats, lon = all_lons, filename = tile_filename)
 
 
-            
+            logging.info(preprocessed_data_df['LorS'], 'lorssss ???')
             model_outputs_df = ann_ssc_model(df_hlsprocessed_raw = preprocessed_data_df, model_dir = ann_model_dir)
-            # logging.info(model_outputs)
+            logging.info(model_outputs_df['LorS'], 'lorssss bad here')
             
             # logging.info('prediction %s', model_outputs)
 
@@ -391,9 +391,14 @@ def main():
 
             # Output
             # model_outputs_df.to_csv(os.path.join(out_dir, os.path.basename(tile_filename'testing_ann.csv'))
-            # final_outputs_for_tile = calculate_sedflux(model_outputs_df  = model_outputs_df, validation_dir = validation_dir)
+            
+            
+            logging.info('Calculating sedflux...')
 
-            model_outputs_df.to_csv(os.path.join(out_dir,tile_filename.replace('.tar','') + '.csv'))
+            final_outputs_for_tile = calculate_sedflux(model_outputs_df  = model_outputs_df, consensus_dir = consensus_dir)
+
+            logging.info('Saving multitask model outputs...')
+            final_outputs_for_tile.to_csv(os.path.join(out_dir,tile_filename.replace('.tar','') + '.csv'))
             print(os.path.join(out_dir,tile_filename.replace('.tar','') + '.csv'), model_outputs_df)
         
         except Exception as e:
