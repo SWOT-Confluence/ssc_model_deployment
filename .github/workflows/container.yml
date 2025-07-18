@@ -34,6 +34,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: ${{ github.repository }}
+          submodules: 'recursive'
 
       # ghcr.io container image
       - name: Log in to the Container registry
