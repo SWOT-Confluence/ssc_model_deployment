@@ -105,6 +105,7 @@ from ssc.output import feature_output
 # import cv_preprocessing, ssc_preprocessing
 # from ssc.multitasking_vision_model import multitasking_vision_model
 from ssc.ann_ssc_model import ann_ssc_model
+from ssc.ann_ssc_model import load_ann_scc_model
 from ssc.calculate_sedflux import calculate_sedflux
 # from ssc.output import output
 
@@ -259,6 +260,11 @@ def main():
     else:
         index_list = [index_to_run]
 
+    ann_model_list_loaded = load_ann_ssc_model(model_dir = ann_model_dir)
+
+    # multitask_model_list_loaded = load_multitask_model()
+
+
     for current_index in index_list:
         # Input
         logging.info(f'Running input... on index {current_index}')
@@ -380,7 +386,7 @@ def main():
 
 
             logging.info(preprocessed_data_df['LorS'], 'lorssss ???')
-            model_outputs_df = ann_ssc_model(df_hlsprocessed_raw = preprocessed_data_df, model_dir = ann_model_dir)
+            model_outputs_df = ann_ssc_model(df_hlsprocessed_raw = preprocessed_data_df, ann_model_list_loaded = ann_model_list_loaded)
             logging.info(model_outputs_df['LorS'], 'lorssss bad here')
             
             # logging.info('prediction %s', model_outputs)

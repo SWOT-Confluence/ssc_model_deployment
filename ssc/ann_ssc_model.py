@@ -54,12 +54,7 @@ def list_files_in_folder(folder_path):
     
     return files_list
 
-def ann_ssc_model(df_hlsprocessed_raw, model_dir):
-    
-    # Start the timer
-    start_time = time.time()
-
-    #load models
+def load_ann_ssc_model(model_dir):
 
     path_load_m1= os.path.join(model_dir, "gl_20250522_2_m1")
     path_load_m2= os.path.join(model_dir, "gl_20250522_2_m2")
@@ -85,6 +80,30 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
         min_input_m2 = pickle.load(file) 
     with open(path_load_m1+'/max_input_m2.pkl', 'rb') as file:
         max_input_m2 = pickle.load(file) 
+
+
+    return model1_load, model2_load, maxval_cut, maximum_out, max_m2, m2_x_train, min_input_m1, max_input_m1, min_input_m2, max_input_m2
+
+
+def ann_ssc_model(df_hlsprocessed_raw, model_dir):
+    
+    # Start the timer
+    start_time = time.time()
+
+    #load models
+
+    (
+        model1_load,
+        model2_load,
+        maxval_cut,
+        maximum_out,
+        max_m2,
+        m2_x_train,
+        min_input_m1,
+        max_input_m1,
+        min_input_m2,
+        max_input_m2
+    ) = ann_model_list_loaded
 
 
     #load data
