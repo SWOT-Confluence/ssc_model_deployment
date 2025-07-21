@@ -404,9 +404,9 @@ def main():
         except Exception as e:
             print('failed...', current_index, e)
             fail_log.append(['failed...', str(current_index), str(e)])
-            with open("/data/input/ssc_june_26/results/fail_log.json", "w") as f:
-                for row in fail_log:
-                    f.write(json.dumps(row) + "\n")
+            # with open("/data/input/ssc_june_26/results/fail_log.json", "w") as f:
+            #     for row in fail_log:
+            #         f.write(json.dumps(row) + "\n")
 
 
 
