@@ -11,6 +11,59 @@ import time
 
 from ssc.multitasking_vision_model_functions.get_model import get_model
 
+def load_multitask_model(ckpt_path, backbone, is_distrib):
+    opt = Namespace(
+        ckpt_path=ckpt_path,
+        backbone=f'{backbone}',
+        head=f'{backbone}_head',
+        method='vanilla', 
+        tasks=['water_mask', 'cloudshadow_mask', 'cloud_mask', 'snowice_mask', 'sun_mask'], 
+    )
+    num_inp_feats = 6   # number of channels in input
+    tasks_outputs = {
+        "water_mask": 1,
+        "cloudshadow_mask": 1,
+        "cloud_mask": 1,
+        "snowice_mask": 1,
+        "sun_mask": 1,
+    }
+    model = get_model(opt, tasks_outputs=tasks_outputs, num_inp_feats=num_inp_feats)
+
+    # logger.debug(f"Loading weights from {ckpt_path}")
+    checkpoint = torch.load(ckpt_path, map_location=torch.device('cpu'))
+    if is_distrib:
+        new_ckpt = {k.split("module.")[-1]:v for k,v in checkpoint["state_dict"].items()}
+        checkpoint["state_dict"] = new_ckpt
+    tmp = model.load_state_dict(checkpoint["state_dict"], strict=True)
+    # logger.debug(f"After loading ckpt: {tmp}")
+    # logger.debug(f"Checkpoint epoch: {checkpoint['epoch']}. best_perf: {checkpoint['best_performance']}")
+    if backbone == "deeplabv3p":
+        optim_threshes = {     # for DeepLabv3+
+            "water_mask": 0.2,
+            "cloudshadow_mask": 0.2,
+            "cloud_mask": 0.3,
+            "snowice_mask": 0.2,
+            'sun_mask': 0.3,    # for 261k dataset
+        }
+    elif backbone == "mobilenetv3":
+        optim_threshes = {     # for MobileNet
+            "water_mask": 0.2,
+            "cloudshadow_mask": 0.2,
+            "cloud_mask": 0.3,
+            "snowice_mask": 0.2,
+            'sun_mask': 0.3,
+        }
+    elif backbone == "segnet":
+        optim_threshes = {     # for SegNet
+            "water_mask": 0.2,
+            "cloudshadow_mask": 0.2,
+            "cloud_mask": 0.3,
+            "snowice_mask": 0.2,
+            'sun_mask': 0.5,
+        }
+    model.eval()
+
+    return model, optim_threshes
 
 
 def get_band_fp_data(data_dir, site_id, date_str):

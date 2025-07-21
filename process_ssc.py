@@ -98,7 +98,7 @@ from collections import defaultdict
 # Local imports
 import ssc.input
 # import ssc.preprocessing
-from ssc.generate_feats_multitask import multitask_model_deploy
+from ssc.generate_feats_multitask import multitask_model_deploy, load_multitask_model
 from ssc.crop_bands import crop_bands
 #from ssc.ann_ssc_model_v2 import ann_ssc_model #commenting for clarity
 from ssc.output import feature_output
@@ -262,7 +262,9 @@ def main():
 
     ann_model_list_loaded = load_ann_ssc_model(model_dir = ann_model_dir)
 
-    # multitask_model_list_loaded = load_multitask_model()
+    multitask_model_list_loaded = load_multitask_model(ckpt_path=ckpt_path, 
+                                                    backbone=backbone, 
+                                                    is_distrib=is_distrib)
 
 
     for current_index in index_list:
