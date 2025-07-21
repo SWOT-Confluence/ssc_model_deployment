@@ -184,58 +184,9 @@ class Namespace:
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
     
-def get_masks(all_bands_in_memory, ckpt_path, backbone, is_distrib=True):
+def get_masks(all_bands_in_memory, model, optim_threshes):
     inp_data = all_bands_in_memory
-    opt = Namespace(
-        ckpt_path=ckpt_path,
-        backbone=f'{backbone}',
-        head=f'{backbone}_head',
-        method='vanilla', 
-        tasks=['water_mask', 'cloudshadow_mask', 'cloud_mask', 'snowice_mask', 'sun_mask'], 
-    )
-    num_inp_feats = 6   # number of channels in input
-    tasks_outputs = {
-        "water_mask": 1,
-        "cloudshadow_mask": 1,
-        "cloud_mask": 1,
-        "snowice_mask": 1,
-        "sun_mask": 1,
-    }
-    model = get_model(opt, tasks_outputs=tasks_outputs, num_inp_feats=num_inp_feats)
-
-    # logger.debug(f"Loading weights from {ckpt_path}")
-    checkpoint = torch.load(ckpt_path, map_location=torch.device('cpu'))
-    if is_distrib:
-        new_ckpt = {k.split("module.")[-1]:v for k,v in checkpoint["state_dict"].items()}
-        checkpoint["state_dict"] = new_ckpt
-    tmp = model.load_state_dict(checkpoint["state_dict"], strict=True)
-    # logger.debug(f"After loading ckpt: {tmp}")
-    # logger.debug(f"Checkpoint epoch: {checkpoint['epoch']}. best_perf: {checkpoint['best_performance']}")
-    if backbone == "deeplabv3p":
-        optim_threshes = {     # for DeepLabv3+
-            "water_mask": 0.2,
-            "cloudshadow_mask": 0.2,
-            "cloud_mask": 0.3,
-            "snowice_mask": 0.2,
-            'sun_mask': 0.3,    # for 261k dataset
-        }
-    elif backbone == "mobilenetv3":
-        optim_threshes = {     # for MobileNet
-            "water_mask": 0.2,
-            "cloudshadow_mask": 0.2,
-            "cloud_mask": 0.3,
-            "snowice_mask": 0.2,
-            'sun_mask': 0.3,
-        }
-    elif backbone == "segnet":
-        optim_threshes = {     # for SegNet
-            "water_mask": 0.2,
-            "cloudshadow_mask": 0.2,
-            "cloud_mask": 0.3,
-            "snowice_mask": 0.2,
-            'sun_mask': 0.5,
-        }
-    model.eval()
+    
     # inp_data = np.stack(inp_data, axis=-1)
     # print(inp_data)
     # for i in range(10):
@@ -261,7 +212,7 @@ def get_masks(all_bands_in_memory, ckpt_path, backbone, is_distrib=True):
         # print('model ran in ', execution_time)
         
     masks = {}
-    for t in tasks_outputs.keys():
+    for t in optim_threshes.keys():
         pred_img = test_pred[t][0,:,:].detach().cpu().numpy()
         thresh = optim_threshes[t]
         masks[t] = (pred_img > thresh).astype(int).squeeze()
@@ -271,7 +222,7 @@ def get_masks(all_bands_in_memory, ckpt_path, backbone, is_distrib=True):
 ID_cols = ['SiteID', 'lat', 'lon', 'date', 'cloud_cover', 'tss_value', 'relative_day', "MGRS", "LorS"]
 
 
-def multitask_model_deploy(all_bands_in_memory, node_data, ckpt_path, backbone, is_distrib, l_or_s):
+def multitask_model_deploy(all_bands_in_memory, node_data, model, thresholds, l_or_s):
     # args = parser.parse_args()
     # logger.debug(f"args: {args}")
 
@@ -320,7 +271,7 @@ def multitask_model_deploy(all_bands_in_memory, node_data, ckpt_path, backbone, 
 
     # print('found the correct number of bands')
 
-    masks = get_masks(all_bands_in_memory=model_bands_in_memory, ckpt_path=ckpt_path, backbone=backbone, is_distrib=(is_distrib==1))
+    masks = get_masks(all_bands_in_memory=model_bands_in_memory, model=model, thresholds=thresholds)
 
     water_mask = masks["water_mask"]
     cloudshadow_mask = masks["cloudshadow_mask"]
