@@ -324,7 +324,7 @@ def input(index_to_run:int, json_data , sentinel_shapefile_filepath:str, latlon_
             raise ValueError('no reaches found in tile, exiting...')
         node_ids_reach_ids_lat_lons = given_reach_find_nodes(overlapping_reaches = overlapping_reaches, sword_data = sword_data)
     # print(node_ids_reach_ids_lat_lons, 'here are points')
-    # node_ids_reach_ids_lat_lons = node_ids_reach_ids_lat_lons[:4]
+    node_ids_reach_ids_lat_lons = node_ids_reach_ids_lat_lons[:4]
 
     # return bands in memory for preprocessing, and processing targets
     return all_bands_in_memory, node_ids_reach_ids_lat_lons, tile_filename, l_or_s, tile_code, cloud_cover, date

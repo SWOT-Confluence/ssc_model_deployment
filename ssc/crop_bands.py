@@ -22,66 +22,131 @@ from ssc.build_HLS_filenames_extrabands import build_HLS_filenames_extrabands
 
 import numpy as np
 
+# def crop_around_index(array, index, fill_value=-9999):
+#     half_size = 256  # Half of the desired crop size
+#     index_row, index_col = index
+#     # array = array[0]
+    
+#     # Determine start and end indices for cropping
+#     start_row = int(max(0, index_row - half_size))
+#     end_row = int(min(array.shape[0], index_row + half_size))
+#     start_col = int(max(0, index_col - half_size))
+#     end_col = int(min(array.shape[1], index_col + half_size))
+    
+#     # Create a new array filled with the fill value
+#     cropped_array = np.full((512, 512), fill_value) #nan
+    
+#     # Calculate the region to copy from the original array
+#     source_start_row = int(half_size - min(index_row, half_size))
+#     source_end_row = int(half_size + min(array.shape[0] - index_row, half_size))
+#     source_start_col = int(half_size - min(index_col, half_size))
+#     source_end_col = int(half_size + min(array.shape[1] - index_col, half_size))
+
+#     try:
+#         # the raw index of the start and end of rows and cols in a cookie cutter kind of way
+#         cookie_start_top=int(index_row)-half_size
+#         cookie_end_bottom=int(index_row)+half_size
+#         cookie_start_left=int(index_col)-half_size
+#         cookie_end_right=int(index_col)+half_size
+
+#         # Copy the relevant portion from the original array to the cropped array
+#         first_array = array[start_row:end_row, start_col:end_col]
+#         #second_array = cropped_array[source_start_row:source_end_row, source_start_col:source_end_col] #nan
+#         # add padding 
+#         left_pad=0
+#         right_pad=0
+#         top_pad=0
+#         bottom_pad=0
+#         if cookie_start_top < 0:
+#             # print('cookie_start_top<0, cookie_start_top='+str(cookie_start_top))
+#             top_pad= 0-cookie_start_top + 1
+#         if cookie_end_bottom > array.shape[0]:
+#             # print('cookie_end_bottom > array.shape[0], cookie_end_bottom='+str(cookie_end_bottom)+' array.shape[0]='+str(array.shape[0]))
+#             bottom_pad=cookie_end_bottom-array.shape[0]
+#         if cookie_start_left<0:
+#             left_pad= 0-cookie_start_left + 1
+#         if cookie_end_right > array.shape[1]:
+#             right_pad=cookie_end_right-  array.shape[1]
+#         # Apply padding
+#         padded_array = np.pad(first_array, ((top_pad, bottom_pad), (left_pad, right_pad)), mode='constant', constant_values=fill_value)
+#         if left_pad>0 or right_pad>0 or top_pad>0 or bottom_pad>0:
+#             print('top_pad is '+str(top_pad)+', bottom_pad is '+str(bottom_pad)+', left_pad is '+str(left_pad)+', right_pad is '+str(right_pad))
+        
+# #[source_start_row:start_row]
+    
+#         #cropped_array[source_start_row:source_end_row, source_start_col:source_end_col] = padded_array #first_array
+#         cropped_array[:, :] = padded_array
+#     except Exception as e:
+#         cropped_array[source_start_row:source_end_row, source_start_col:source_end_col] = -9999
+#         print('Band crop failed, using fill value...')
+#         print(e)
+    
+#     return cropped_array
+
+import numpy as np
+
+import numpy as np
+
 def crop_around_index(array, index, fill_value=-9999):
-    half_size = 256  # Half of the desired crop size
-    index_row, index_col = index
-    # array = array[0]
-    
-    # Determine start and end indices for cropping
-    start_row = int(max(0, index_row - half_size))
-    end_row = int(min(array.shape[0], index_row + half_size))
-    start_col = int(max(0, index_col - half_size))
-    end_col = int(min(array.shape[1], index_col + half_size))
-    
-    # Create a new array filled with the fill value
-    cropped_array = np.full((512, 512), fill_value) #nan
-    
-    # Calculate the region to copy from the original array
-    source_start_row = int(half_size - min(index_row, half_size))
-    source_end_row = int(half_size + min(array.shape[0] - index_row, half_size))
-    source_start_col = int(half_size - min(index_col, half_size))
-    source_end_col = int(half_size + min(array.shape[1] - index_col, half_size))
+    """
+    Crop a 512x512 region around a given index from a 2D array.
+    If the crop extends beyond array bounds, pad with `fill_value`.
+
+    Parameters:
+    - array (2D np.ndarray): Input image or band array
+    - index (tuple): (row, col) center of crop
+    - fill_value: Value to use for padding if crop exceeds bounds
+
+    Returns:
+    - cropped_array (512x512 np.ndarray)
+    """
+    crop_size = 512
+    half_size = crop_size // 2
+
+    # Ensure integer indices to avoid slicing errors
+    index_row, index_col = map(int, index)
+
+    # Define the intended full crop window (can go out of bounds)
+    crop_top = index_row - half_size
+    crop_bottom = index_row + half_size
+    crop_left = index_col - half_size
+    crop_right = index_col + half_size
+
+    # Clip crop window to array bounds
+    data_top = max(0, crop_top)
+    data_bottom = min(array.shape[0], crop_bottom)
+    data_left = max(0, crop_left)
+    data_right = min(array.shape[1], crop_right)
 
     try:
-        # the raw index of the start and end of rows and cols in a cookie cutter kind of way
-        cookie_start_top=int(index_row)-half_size
-        cookie_end_bottom=int(index_row)+half_size
-        cookie_start_left=int(index_col)-half_size
-        cookie_end_right=int(index_col)+half_size
+        # Slice out the valid data
+        data_slice = array[data_top:data_bottom, data_left:data_right]
 
-        # Copy the relevant portion from the original array to the cropped array
-        first_array = array[start_row:end_row, start_col:end_col]
-        #second_array = cropped_array[source_start_row:source_end_row, source_start_col:source_end_col] #nan
-        # add padding 
-        left_pad=0
-        right_pad=0
-        top_pad=0
-        bottom_pad=0
-        if cookie_start_top < 0:
-            # print('cookie_start_top<0, cookie_start_top='+str(cookie_start_top))
-            top_pad= 0-cookie_start_top
-        if cookie_end_bottom > array.shape[0]:
-            # print('cookie_end_bottom > array.shape[0], cookie_end_bottom='+str(cookie_end_bottom)+' array.shape[0]='+str(array.shape[0]))
-            bottom_pad=cookie_end_bottom-array.shape[0]
-        if cookie_start_left<0:
-            left_pad= cookie_start_left
-        if cookie_end_right > array.shape[1]:
-            right_pad=cookie_end_right-  array.shape[1]
+        # Compute padding to apply
+        pad_top = data_top - crop_top
+        pad_bottom = crop_bottom - data_bottom
+        pad_left = data_left - crop_left
+        pad_right = crop_right - data_right
+
         # Apply padding
-        padded_array = np.pad(first_array, ((top_pad, bottom_pad), (left_pad, right_pad)), mode='constant', constant_values=fill_value)
-        # if left_pad>0 or right_pad>0 or top_pad>0 or bottom_pad>0:
-        #     print('top_pad is '+str(top_pad)+', bottom_pad is '+str(bottom_pad)+', left_pad is '+str(left_pad)+', right_pad is '+str(right_pad))
-        
-#[source_start_row:start_row]
-    
-        #cropped_array[source_start_row:source_end_row, source_start_col:source_end_col] = padded_array #first_array
-        cropped_array[:, :] = padded_array
+        padded_array = np.pad(
+            data_slice,
+            pad_width=((pad_top, pad_bottom), (pad_left, pad_right)),
+            mode='constant',
+            constant_values=fill_value
+        )
+
+        # Ensure final size
+        if padded_array.shape != (512, 512):
+            raise ValueError(f"Padded crop shape mismatch: {padded_array.shape}")
+
+        return padded_array
+
     except Exception as e:
-        cropped_array[source_start_row:source_end_row, source_start_col:source_end_col] = -9999
-        print('Band crop failed, using fill value...')
-        print(e)
-    
-    return cropped_array
+        print(f"Cropping failed around index {index}: {e}")
+        raise ValueError("Cropping failed during band crop")
+
+
 
 # Example usage:
 # array = your_array_here

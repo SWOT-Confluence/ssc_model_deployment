@@ -108,6 +108,7 @@ import json
 import sys
 import logging
 from collections import defaultdict
+import pandas as pd
 
 # Local imports
 import ssc.input
@@ -472,12 +473,12 @@ def main():
         
         except Exception as e:
             logging.info(f'failed..., {current_index}, {e}')
-            fail_log.append(['failed...', str(current_index), str(e)])
+            fail_log.append([str(current_index), os.path.basename(tile_filename), str(e)])
 
 
             # Write to a text file
-            with open(os.path.join(out_dir,os.path.basename(tile_filename).replace('.tar','_fail_log') + '.txt'), "w") as file:
-                file.write(f'failed..., {current_index}, {os.path.basename(tile_filename)},{e}')
+            # with open(os.path.join(out_dir,os.path.basename(tile_filename).replace('.tar','_fail_log') + '.txt'), "w") as file:
+            #     file.write(f'failed..., {current_index}, {os.path.basename(tile_filename)},{e}')
             # with open(os.path.join(out_dir,f"{tile_filename}.json", "w") as f:
             #     for row in fail_log:
             #         f.write(json.dumps(row) + "\n")
@@ -488,5 +489,10 @@ def main():
         logging.info(f"Execution time: %s", end - start)
 
     print('-------------------FAIL LOG HERE', fail_log)
+    # Convert to DataFrame
+    df = pd.DataFrame(fail_log, columns=["index", "tile_name", "error"])
+
+    # Write to CSV
+    df.to_csv(os.path.join(out_dir,(str(index_to_run) + '_fail_log' + '.csv')), index=False)
 if __name__ == "__main__":
     main()
