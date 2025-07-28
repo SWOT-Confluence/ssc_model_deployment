@@ -11,6 +11,7 @@ import glob
 import time
 import random
 import subprocess as sp
+import logging
 
 # Third-party imports
 import botocore
@@ -169,8 +170,8 @@ def load_bands_to_memory(tile:str, run_location:str):
         hls_da.close()
         
         if cloud_cover > 50:
-            print(f'Cloud cover too high for tile at {cloud_cover}%...')
-            print('exiting...')
+            logging.info(f'Cloud cover too high for tile at {cloud_cover}%...')
+            logging.info('exiting...')
             # exit()
             raise ValueError(f'Cloud cover too high for tile at {cloud_cover}%...')
 
@@ -200,13 +201,14 @@ def get_creds_to_env():
         creds['user'] = ssm.get_parameter(Name=f'{prefix}-lpdaac-user', WithDecryption=True)['Parameter']['Value']
         creds['pass'] = ssm.get_parameter(Name=f'{prefix}-lpdaac-password', WithDecryption=True)['Parameter']['Value']
     except KeyError as e:
-        print('Using local .netrc file; this needs to be created prior to running')
-        print('Here is why we are not using the netrc', e)
+
+        logging.info('Using local .netrc file; this needs to be created prior to running')
+        logging.info(f'Here is why we are not using the netrc {e}')
     except botocore.exceptions.ClientError as e:
         raise e
 
     if creds:
-        print('creating netrc')
+        logging.info('creating netrc')
         f = open("/root/.netrc", "w")
         f.write(f"machine urs.earthdata.nasa.gov login {creds['user']} password {creds['pass']}")
         f.close()
@@ -223,11 +225,11 @@ def login_to_s3():
     try:
         temp_creds_req = temp_creds_req.json()
     except Exception as e:
-        print(e)
-        print('temp creds request failed', temp_reds_req)
+        logging.info(e)
+        logging.info('temp creds request failed')
         # print('here is raw response for bugfixing...', temp_creds_req.content)
         # exit()
-        raise ValueError('temp creds request failed', temp_reds_req)
+        raise ValueError('temp creds request failed')
     
 
     session = boto3.Session(aws_access_key_id=temp_creds_req['accessKeyId'], 
@@ -252,24 +254,15 @@ def login_to_s3():
 
 
 
-def input(indir, index_to_run:int, hls_s3_json_filename:str , sentinel_shapefile_filepath:str, latlon_file, run_location:str, reaches_of_interest_path:str):
+def input(index_to_run:int, json_data , sentinel_shapefile_filepath:str, latlon_file, run_location:str, reaches_of_interest_path:str, sword_dir:str, sword_data):
     """
     function descripotion
     """
 
-    # parse input filename
-    # hls_s3_json_filename = os.path.join(indir, hls_s3_json_filename)
-    hls_s3_json_filename = os.path.join(indir,hls_s3_json_filename)
-    # print(hls_s3_json_filename)
 
-    # read in hls_s3_json_path
-    with open(hls_s3_json_filename) as f:
-        json_data = json.load(f)
 
 
     # tile_code = tile_filename.split('.')[2]
-
-    sword_dir = os.path.join(indir, 'sword')
 
     # read in gdf of sentinal
 
@@ -329,8 +322,6 @@ def input(indir, index_to_run:int, hls_s3_json_filename:str , sentinel_shapefile
             print('no reaches found in tile, exiting...')
             # exit()
             raise ValueError('no reaches found in tile, exiting...')
-
-        sword_data = load_correct_sword(a_reach = str(overlapping_reaches[0]), sword_dir = sword_dir)
         node_ids_reach_ids_lat_lons = given_reach_find_nodes(overlapping_reaches = overlapping_reaches, sword_data = sword_data)
     # print(node_ids_reach_ids_lat_lons, 'here are points')
     # node_ids_reach_ids_lat_lons = node_ids_reach_ids_lat_lons[:4]
@@ -385,7 +376,6 @@ def given_reach_find_nodes(overlapping_reaches:list, sword_data):
             
 
 
-    sword_data.close()
     
     node_ids_reach_ids_lat_lons = [[a, b, (c, d)] for a, b, c, d in zip(node_ids, reach_ids, lat_list, lon_list)]
 

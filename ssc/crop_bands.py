@@ -69,8 +69,8 @@ def crop_around_index(array, index, fill_value=-9999):
             right_pad=cookie_end_right-  array.shape[1]
         # Apply padding
         padded_array = np.pad(first_array, ((top_pad, bottom_pad), (left_pad, right_pad)), mode='constant', constant_values=fill_value)
-        if left_pad>0 or right_pad>0 or top_pad>0 or bottom_pad>0:
-            print('top_pad is '+str(top_pad)+', bottom_pad is '+str(bottom_pad)+', left_pad is '+str(left_pad)+', right_pad is '+str(right_pad))
+        # if left_pad>0 or right_pad>0 or top_pad>0 or bottom_pad>0:
+        #     print('top_pad is '+str(top_pad)+', bottom_pad is '+str(bottom_pad)+', left_pad is '+str(left_pad)+', right_pad is '+str(right_pad))
         
 #[source_start_row:start_row]
     

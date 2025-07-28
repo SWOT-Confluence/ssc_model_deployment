@@ -271,7 +271,7 @@ def multitask_model_deploy(all_bands_in_memory, node_data, model, thresholds, l_
 
     # print('found the correct number of bands')
 
-    masks = get_masks(all_bands_in_memory=model_bands_in_memory, model=model, thresholds=thresholds)
+    masks = get_masks(all_bands_in_memory=model_bands_in_memory, model=model, optim_threshes=thresholds)
 
     water_mask = masks["water_mask"]
     cloudshadow_mask = masks["cloudshadow_mask"]

@@ -84,6 +84,20 @@ sudo docker run -v /media/travis/work/data/mnt/input:/data/input -v /home/travis
 
 # sudo docker run -v /mnt/validation/stats:/data/validation -v /mnt/input:/data/input -v /home/ec2-user/:/root/ ssc_deploy    --validation_dir /data/validation  -j /data/input/global_HLS_filtered_plus_minus_1_day_compressed_no_dupes         -o /data/input/ssc_june_26/results                  -d /data/input                     --ckpt_path /data/input/ssc/models/model_static_files/rangel_checks/multitask_ckpts/deeplabv3p_distrib.pth.tar                           --ann_model_dir /data/input/ssc/models/model_static_files/final_model_static_files                             -i 2 -c > output.log 2>&1
 
+
+# ssc_model_deployment]$ sudo docker run -v /mnt/flpe/consensus:/data/consensus -v /mnt/input:/data/input -v /home/ec2-user/:/root/ ssc_deploy    -
+# -consensus_dir /data/consensus  -j /data/input/global_HLS_filtered_plus_minus_1_day_compressed_no_dupes         -o /data/input/ssc_july_22/                  -d /data/input             
+#         --ckpt_path /data/input/ssc/models/model_static_files/rangel_checks/multitask_ckpts/deeplabv3p_distrib.pth.tar                           --ann_model_dir /data/input/ssc/models/model_static_files/final_model_static_files                             -i 2 -c > output.log 2>&1
+
+
+# sudo docker run -v /mnt/flpe/consensus:/data/consensus -v /mnt/input:/data/input -v /home/ec2-user/:/ro
+# ot/ ssc_deploy    --consensus_dir /data/consensus  -j /data/input/global_HLS_filtered_plus_minus_1_day_compressed_no_dupes_spread_by_cont         -o /data/input/ssc_
+# july_24/    --starting_point 5000              -d /data/input                     --ckpt_path /data/input/ssc/models/model_static_files/rangel_checks/multitask_ckpts
+# /deeplabv3p_distrib.pth.tar                           --ann_model_dir /data/input/ssc/models/model_static_files/final_model_static_files                             
+# -i 1 -c > output.log 2>&1
+
+
+
 # Standard imports
 import datetime
 import argparse
@@ -97,6 +111,7 @@ from collections import defaultdict
 
 # Local imports
 import ssc.input
+from ssc.input import load_correct_sword
 # import ssc.preprocessing
 from ssc.generate_feats_multitask import multitask_model_deploy, load_multitask_model
 from ssc.crop_bands import crop_bands
@@ -105,7 +120,7 @@ from ssc.output import feature_output
 # import cv_preprocessing, ssc_preprocessing
 # from ssc.multitasking_vision_model import multitasking_vision_model
 from ssc.ann_ssc_model import ann_ssc_model
-from ssc.ann_ssc_model import load_ann_scc_model
+from ssc.ann_ssc_model import load_ann_ssc_model
 from ssc.calculate_sedflux import calculate_sedflux
 # from ssc.output import output
 
@@ -176,6 +191,11 @@ def create_args():
                             type=int,
                             help='How many meters to crop around the nodes')
     
+    arg_parser.add_argument('--starting_point', 
+                            type=int,
+                            help='Indicates what tile to start processing at, useful for partial or failed runs',
+                            default= 0)
+
     arg_parser.add_argument('--latlon', 
                             type=str,
                             help='If you want to use a specific lat lon instead of searching for reaches')
@@ -188,21 +208,23 @@ def create_args():
     arg_parser.add_argument('--ann_model_dir', 
                             type=str,
                             help='directory of ann model',
-                            default= '/mnt/input/ssc/models/model_static_files/nd_20250430'),
+                            default= '/mnt/input/ssc/models/model_static_files/nd_20250430')
 
     arg_parser.add_argument('--run_location', 
                             type=str,
                             help='Indicates where we are running to define the tile link prefix',
-                            default= 'aws'),    
+                            default= 'aws')  
     
     arg_parser.add_argument('--consensus_dir', 
                             type=str,
-                            help='Path to the consensus files which hold the FLPE consesus discharge for calculating sedflux'),
+                            help='Path to the consensus files which hold the FLPE consesus discharge for calculating sedflux')
     
     arg_parser.add_argument('-c',
                             '--chunk_processing', 
                             action='store_true',
                             help='Passing this arg allows you to process whole files instead of one file parallel by tile')
+    
+
 
     return arg_parser
 
@@ -210,7 +232,7 @@ def main():
     """Main function to execute ssc prediction operations."""
 
     
-    start = datetime.datetime.now()
+
     
     # Command line arguments
     arg_parser = create_args()
@@ -239,6 +261,8 @@ def main():
     # logging.info('all_files')
     all_files = glob.glob(os.path.join(indir, '*'))
     ssc_files = glob.glob(os.path.join(indir, 'ssc', '*'))
+    sword_dir = os.path.join(indir, 'sword')
+    starting_point = args.starting_point
     # logging.info(all_files)
 
     fail_log = []
@@ -250,6 +274,8 @@ def main():
 
     if index_to_run == -235:
         index_to_run = int(os.environ.get("AWS_BATCH_JOB_ARRAY_INDEX"))
+
+    index_to_run = index_to_run + starting_point
         
     if chunk_processing:
         hls_s3_json_filename = sorted(glob.glob(os.path.join(hls_s3_json_filename, '*')))[index_to_run]
@@ -257,11 +283,40 @@ def main():
         with open(hls_s3_json_filename) as f:
             json_data = json.load(f)
         index_list = list(range(len(json_data)))
+        logging.info(f'Processing {len(index_list)} tiles...')
+
+        # use the first reach in the first tile to load the most likely sword for the whole tile set to cut down on reads
+        tries = 4
+        for i in range(tries):
+            try:
+                likely_sword = load_correct_sword(a_reach = str(json_data[list(json_data.keys())[0]][0]), sword_dir = sword_dir)
+                break
+            except:
+                logging.info('Sword load failed, trying again')
+
     else:
         index_list = [index_to_run]
+        hls_s3_json_filename = os.path.join(indir,hls_s3_json_filename)
+    # print(hls_s3_json_filename)
 
+        with open(hls_s3_json_filename) as f:
+            json_data = json.load(f)
+
+        # use the first reach in the first tile to load the most likely sword for the whole tile set to cut down on reads
+        tries = 4
+        for i in range(tries):
+            try:
+                likely_sword = load_correct_sword(a_reach = str(json_data[list(json_data.keys())[0]][0]), sword_dir = sword_dir)
+                break
+            except:
+                logging.info('Sword load failed, trying again')
+
+        
+
+
+    logging.info("Loading ann model...")
     ann_model_list_loaded = load_ann_ssc_model(model_dir = ann_model_dir)
-
+    logging.info("Loading ssc model...")
     multitask_model, multitask_thresholds = load_multitask_model(ckpt_path=ckpt_path, 
                                                     backbone=backbone, 
                                                     is_distrib=(is_distrib==1))
@@ -270,15 +325,21 @@ def main():
     for current_index in index_list:
         # Input
         logging.info(f'Running input... on index {current_index}')
+        start = datetime.datetime.now()
+
+        tile_filename = list(json_data.keys())[current_index]
         try:
+            
             # all_bands_in_memory, node_ids_reach_ids_lat_lons, tile_filename, l_or_s, tile_code, cloud_cover, date
-            all_bands_in_memory, node_ids_reach_ids_lat_lons, tile_filename, l_or_s, tile_code, cloud_cover, date = ssc.input.input(indir=indir,
+            all_bands_in_memory, node_ids_reach_ids_lat_lons, tile_filename, l_or_s, tile_code, cloud_cover, date = ssc.input.input(
                                                                 index_to_run=current_index, 
-                                                                hls_s3_json_filename=hls_s3_json_filename,
+                                                                json_data = json_data,
                                                                 sentinel_shapefile_filepath=sentinel_shapefile_filepath, 
                                                                 latlon_file=latlon_file,
                                                                 run_location=run_location,
-                                                                reaches_of_interest_path = reaches_of_interest_path)
+                                                                reaches_of_interest_path = reaches_of_interest_path,
+                                                                sword_dir=sword_dir,
+                                                                sword_data=likely_sword)
 
             # if latlon_file is not None:
 
@@ -317,7 +378,7 @@ def main():
             all_mgrs_flags = []
                 
             for node_data in node_ids_reach_ids_lat_lons:
-                logging.info('processing node %s of %s', cnt, len(node_ids_reach_ids_lat_lons))
+                logging.info(f'preprocessing node {cnt} of {len(node_ids_reach_ids_lat_lons)}')
                 cnt += 1
                 # if latlon_file_provided:
                 #     node_data = node_data.split(',')
@@ -347,6 +408,7 @@ def main():
 
                     # Multitasking model feature generation
                     try:
+                        
                         features_for_ann_model = multitask_model_deploy(all_bands_in_memory=cropped_bands_in_memory,
                                                                     node_data = node_data,
                                                                     model=multitask_model, 
@@ -385,10 +447,8 @@ def main():
             preprocessed_data_df = feature_output(feature_dict=feature_dict, out_dir = out_dir, cloud_cover = cloud_cover, \
                 mgrs_flag = all_mgrs_flags, date = date, l_or_s = l_or_s, args=args, lat = all_lats, lon = all_lons, filename = tile_filename)
 
-
-            logging.info(preprocessed_data_df['LorS'], 'lorssss ???')
+            logging.info('Deploying ssc model...')
             model_outputs_df = ann_ssc_model(df_hlsprocessed_raw = preprocessed_data_df, ann_model_list_loaded = ann_model_list_loaded)
-            logging.info(model_outputs_df['LorS'], 'lorssss bad here')
             
             # logging.info('prediction %s', model_outputs)
 
@@ -405,13 +465,20 @@ def main():
             final_outputs_for_tile = calculate_sedflux(model_outputs_df  = model_outputs_df, consensus_dir = consensus_dir)
 
             logging.info('Saving multitask model outputs...')
+            logging.info(f'Found {len(list(final_outputs_for_tile["sedflux"].unique()))} sedfluxes....')
+
             final_outputs_for_tile.to_csv(os.path.join(out_dir,tile_filename.replace('.tar','') + '.csv'))
             print(os.path.join(out_dir,tile_filename.replace('.tar','') + '.csv'), model_outputs_df)
         
         except Exception as e:
-            print('failed...', current_index, e)
+            logging.info(f'failed..., {current_index}, {e}')
             fail_log.append(['failed...', str(current_index), str(e)])
-            # with open("/data/input/ssc_june_26/results/fail_log.json", "w") as f:
+
+
+            # Write to a text file
+            with open(os.path.join(out_dir,os.path.basename(tile_filename).replace('.tar','_fail_log') + '.txt'), "w") as file:
+                file.write(f'failed..., {current_index}, {os.path.basename(tile_filename)},{e}')
+            # with open(os.path.join(out_dir,f"{tile_filename}.json", "w") as f:
             #     for row in fail_log:
             #         f.write(json.dumps(row) + "\n")
 
@@ -420,7 +487,6 @@ def main():
         end = datetime.datetime.now()
         logging.info(f"Execution time: %s", end - start)
 
-    print('-------------------FAIL LOG HERE')
-    print(fail_log)
+    print('-------------------FAIL LOG HERE', fail_log)
 if __name__ == "__main__":
     main()

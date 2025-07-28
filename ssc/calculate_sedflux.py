@@ -28,6 +28,8 @@ def calculate_sedflux(model_outputs_df, consensus_dir:str):
             # Assume: time_var is the netCDF4 Variable 
             #         date_x is a list or array of date strings like "2023-05-26"
 
+            consensus_reach_data.dropna(subset=['date'], inplace=True)
+
             consensus_date = consensus_reach_data['date']
             ssc_date = ssc_reach_data['date'].values
 
@@ -66,10 +68,12 @@ def calculate_sedflux(model_outputs_df, consensus_dir:str):
             sedflux_values = []
 
             for i, match_dates in enumerate(matches):
+                avg_median = np.nan
+                
+
                 if match_dates:  # we have at least one ±1-day match
                     # You could take the average median across matches, or pick the first one
                     matched_medians = [consensus_reach_data.loc[j, "median"] for j, t in enumerate(consensus_date_dt) if t in match_dates]
-                    
                     # Filter out NAs
                     matched_medians = [m for m in matched_medians if pd.notnull(m)]
                     
@@ -91,8 +95,7 @@ def calculate_sedflux(model_outputs_df, consensus_dir:str):
 
 
         except Exception as e:
-            logging.info('No file')
-            logging.info(e)
+            logging.info(f'No file {e}')
     return model_outputs_df
     
 

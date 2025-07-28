@@ -85,7 +85,7 @@ def load_ann_ssc_model(model_dir):
     return model1_load, model2_load, maxval_cut, maximum_out, max_m2, m2_x_train, min_input_m1, max_input_m1, min_input_m2, max_input_m2
 
 
-def ann_ssc_model(df_hlsprocessed_raw, model_dir):
+def ann_ssc_model(df_hlsprocessed_raw, ann_model_list_loaded):
     
     # Start the timer
     start_time = time.time()
@@ -154,7 +154,6 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
     mapping = {'L': 0, 'S': 1}
     df_hlsprocessed['LorS'] = df_hlsprocessed['LorS'].replace(mapping)
 
-    logging.info("after mappig", df_hlsprocessed['LorS'])
     
     # empty output column
     df_hlsprocessed['SSC'] = 0
@@ -311,12 +310,16 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
     mapping = {0:'L', 1:'S'}
     df_reordered['LorS'] = df_reordered['LorS'].replace(mapping)
 
+
+
+
     # End the timer
     end_time = time.time()
 
     # Calculate the dispensed time
     elapsed_time = end_time - start_time
     print(f"Elapsed time: {elapsed_time:.4f} seconds")
+    df_reordered['pixel_count'] =     df_reordered['B01_count']
     return df_reordered
     # =============================================================================
     # columns = ['lat', 'lon', 'SSC_modeled', 'discharge_SWOT', 'sedflux','date','ReachID']

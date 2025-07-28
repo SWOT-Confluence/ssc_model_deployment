@@ -42,7 +42,6 @@ def extract_info_HLS_filename(filename):
     # nameprod=actual_filename[0:3]
     filename_list = actual_filename.split('.')
     nameprod = filename_list[0]
-    print(filename_list)
     
     if (nameprod=='HLS'):
         
