@@ -80,7 +80,7 @@ class BaseSegmentation(nn.Module):
             name = (cls.model_name, num_filters)
             if name in MODEL_WEIGHTS_URL:
                 weights_url = MODEL_WEIGHTS_URL[name]
-                print(f'Loading pretrained model {name[0]} with F={name[1]}...')
+                # print(f'Loading pretrained model {name[0]} with F={name[1]}...')
                 checkpoint = torch.hub.load_state_dict_from_url(weights_url, map_location='cpu')
             else:
                 raise ValueError(f'pretrained weights not found for model {name}, please specify a checkpoint')
