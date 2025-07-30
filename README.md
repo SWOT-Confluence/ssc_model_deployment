@@ -1,6 +1,10 @@
 # ssc_model_deployment
 Module for input, preprocessing, and deployment of the CV and SSC based models
 
+# Neural Networks
+
+This module was based on the Artificial Neural Networks developed by Luisa Vieira Lucchese, available at https://github.com/luisalucchese/ann-ssc-module
+
 ## Deployment plan
 <!-- 
 * Static file of a combined vector of sword reaches by continent
