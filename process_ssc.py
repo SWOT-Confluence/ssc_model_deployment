@@ -224,6 +224,12 @@ def create_args():
                             '--chunk_processing', 
                             action='store_true',
                             help='Passing this arg allows you to process whole files instead of one file parallel by tile')
+
+    arg_parser.add_argument('-s',
+                            '--sosbucket',
+                            type=str,
+                            help='Name of the SoS bucket and key to download from',
+                            default='')
     
 
 
@@ -264,6 +270,7 @@ def main():
     ssc_files = glob.glob(os.path.join(indir, 'ssc', '*'))
     sword_dir = os.path.join(indir, 'sword')
     starting_point = args.starting_point
+    sos_bucket = args.sosbucket
     # logging.info(all_files)
 
     fail_log = []
@@ -290,10 +297,10 @@ def main():
         tries = 4
         for i in range(tries):
             try:
-                likely_sword = load_correct_sword(a_reach = str(json_data[list(json_data.keys())[0]][0]), sword_dir = sword_dir)
+                likely_sword = load_correct_sword(a_reach = str(json_data[list(json_data.keys())[0]][0]), sword_dir = sword_dir, sos_bucket = sos_bucket)
                 break
-            except:
-                logging.info('Sword load failed, trying again')
+            except Exception as e:
+                logging.info('Sword load failed, trying again', e)
 
     else:
         index_list = [index_to_run]
@@ -307,7 +314,7 @@ def main():
         tries = 4
         for i in range(tries):
             try:
-                likely_sword = load_correct_sword(a_reach = str(json_data[list(json_data.keys())[0]][0]), sword_dir = sword_dir)
+                likely_sword = load_correct_sword(a_reach = str(json_data[list(json_data.keys())[0]][0]), sword_dir = sword_dir, sos_bucket = sos_bucket)
                 break
             except:
                 logging.info('Sword load failed, trying again')

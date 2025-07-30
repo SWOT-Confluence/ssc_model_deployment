@@ -12,6 +12,9 @@ import time
 import random
 import subprocess as sp
 import logging
+import time
+from random import randint
+
 
 # Third-party imports
 import botocore
@@ -195,17 +198,24 @@ def get_creds_to_env():
     """Return AWS S3 credentials to access S3 shapefiles."""
 
     creds = {}
-    try:
-        ssm = boto3.client("ssm", region_name="us-west-2")
-        prefix = os.environ["PREFIX"]
-        creds['user'] = ssm.get_parameter(Name=f'{prefix}-lpdaac-user', WithDecryption=True)['Parameter']['Value']
-        creds['pass'] = ssm.get_parameter(Name=f'{prefix}-lpdaac-password', WithDecryption=True)['Parameter']['Value']
-    except KeyError as e:
 
-        logging.info('Using local .netrc file; this needs to be created prior to running')
-        logging.info(f'Here is why we are not using the netrc {e}')
-    except botocore.exceptions.ClientError as e:
-        raise e
+    tries = 10
+    for i in range(tries):
+        try:
+            ssm = boto3.client("ssm", region_name="us-west-2")
+            prefix = os.environ["PREFIX"]
+            creds['user'] = ssm.get_parameter(Name=f'{prefix}-lpdaac-user', WithDecryption=True)['Parameter']['Value']
+            creds['pass'] = ssm.get_parameter(Name=f'{prefix}-lpdaac-password', WithDecryption=True)['Parameter']['Value']
+            break
+        except KeyError as e:
+
+            logging.info('Using local .netrc file; this needs to be created prior to running')
+            logging.info(f'Here is why we are not using the netrc {e}')
+            break
+        except botocore.exceptions.ClientError as e:
+            logging.info(f'pull failed because {e}')
+            logging.info(f'Trying again for the {i} time...')
+            time.sleep(randint(1,100))
 
     if creds:
         logging.info('creating netrc')
@@ -324,12 +334,12 @@ def input(index_to_run:int, json_data , sentinel_shapefile_filepath:str, latlon_
             raise ValueError('no reaches found in tile, exiting...')
         node_ids_reach_ids_lat_lons = given_reach_find_nodes(overlapping_reaches = overlapping_reaches, sword_data = sword_data)
     # print(node_ids_reach_ids_lat_lons, 'here are points')
-    node_ids_reach_ids_lat_lons = node_ids_reach_ids_lat_lons[:4]
+    # node_ids_reach_ids_lat_lons = node_ids_reach_ids_lat_lons[:4]
 
     # return bands in memory for preprocessing, and processing targets
     return all_bands_in_memory, node_ids_reach_ids_lat_lons, tile_filename, l_or_s, tile_code, cloud_cover, date
 
-def load_correct_sword(a_reach:str, sword_dir:str):
+def load_correct_sword(a_reach:str, sword_dir:str, sos_bucket:str):
     lookup = {
     "1": "af",
     "4": "as", "3": "as",
@@ -339,15 +349,20 @@ def load_correct_sword(a_reach:str, sword_dir:str):
     "6": "sa"
     }
     
-    sword_path = os.path.join(sword_dir, f'{lookup[a_reach[0]]}_sword_v16_patch.nc')
+    # sword_path = os.path.join(sword_dir, f'{lookup[a_reach[0]]}_sword_v16_patch.nc')
 
-    if os.path.exists(sword_path):
-        pass
-    else:
-        sword_path = sword_path.replace('_patch', '')
+    # if os.path.exists(sword_path):
+    #     pass
+    # else:
+    #     sword_path = sword_path.replace('_patch', '')
+    sos_file = os.path.join("/tmp", f'{lookup[a_reach[0]]}_sword_v16.nc')
+
+
+    from sos_read.sos_read import download_sos
+    download_sos(sos_bucket, sos_file)
 
     
-    return ncf.Dataset(sword_path)
+    return ncf.Dataset(sos_file)
     
 
 def given_reach_find_nodes(overlapping_reaches:list, sword_data):
