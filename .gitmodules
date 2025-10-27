@@ -1,0 +1,3 @@
+[submodule "sos_read"]
+	path = sos_read
+	url = https://github.com/SWOT-Confluence/sos_read.git

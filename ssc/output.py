@@ -19,10 +19,12 @@ def output():
 
 def feature_output(feature_dict, out_dir, cloud_cover, mgrs_flag, date, l_or_s, args, lat, lon, filename):
 
-
+    # print(feature_dict.values())
     df = pd.DataFrame(data=np.array(list(feature_dict.values())).T, columns=list(feature_dict.keys()))
-    print('ouputting results to csv...')
-    print(df.head())
+    # 
+    # 
+    # ('ouputting results to csv...')
+    # print(df.head())
     df['cloud_cover'] = cloud_cover 
     df['date'] = date
     df['LorS'] = l_or_s

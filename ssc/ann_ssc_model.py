@@ -17,6 +17,7 @@ import os
 import sys
 import time
 from .auxfunctions.f_execens import f_execens
+import logging
 
 
 
@@ -53,15 +54,10 @@ def list_files_in_folder(folder_path):
     
     return files_list
 
-def ann_ssc_model(df_hlsprocessed_raw, model_dir):
-    
-    # Start the timer
-    start_time = time.time()
+def load_ann_ssc_model(model_dir):
 
-    #load models
-
-    path_load_m1= os.path.join(model_dir, "nd_20250430_1_m1")
-    path_load_m2= os.path.join(model_dir, "nd_20250430_1_m1")
+    path_load_m1= os.path.join(model_dir, "gl_20250522_2_m1")
+    path_load_m2= os.path.join(model_dir, "gl_20250522_2_m2")
 
     model1_load = tf.keras.models.load_model(path_load_m1)
 
@@ -84,6 +80,30 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
         min_input_m2 = pickle.load(file) 
     with open(path_load_m1+'/max_input_m2.pkl', 'rb') as file:
         max_input_m2 = pickle.load(file) 
+
+
+    return model1_load, model2_load, maxval_cut, maximum_out, max_m2, m2_x_train, min_input_m1, max_input_m1, min_input_m2, max_input_m2
+
+
+def ann_ssc_model(df_hlsprocessed_raw, ann_model_list_loaded):
+    
+    # Start the timer
+    start_time = time.time()
+
+    #load models
+
+    (
+        model1_load,
+        model2_load,
+        maxval_cut,
+        maximum_out,
+        max_m2,
+        m2_x_train,
+        min_input_m1,
+        max_input_m1,
+        min_input_m2,
+        max_input_m2
+    ) = ann_model_list_loaded
 
 
     #load data
@@ -116,39 +136,29 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
         
     #     file_name = os.path.basename(file_path)
     if "S" in df_hlsprocessed_raw['LorS'].unique():
-            # print(f"Pattern 'S30' found in file: {file_name}")
-            df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B05', 'NA1') if 'B05' in x else x)
-            df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B8A', 'B05') if 'B8A' in x else x)
-            df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B06', 'NA2') if 'B06' in x else x)
-            df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B11', 'B06') if 'B11' in x else x)
-            df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B07', 'NA3') if 'B07' in x else x)
-            df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B12', 'B07') if 'B12' in x else x)
-            df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B09', 'NA4') if 'B09' in x else x)
-            df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B10', 'B09') if 'B10' in x else x)
+        # print(f"Pattern 'S30' found in file: {file_name}")
+        df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B05', 'NA1') if 'B05' in x else x)
+        df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B8A', 'B05') if 'B8A' in x else x)
+        df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B06', 'NA2') if 'B06' in x else x)
+        df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B11', 'B06') if 'B11' in x else x)
+        df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B07', 'NA3') if 'B07' in x else x)
+        df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B12', 'B07') if 'B12' in x else x)
+        df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B09', 'NA4') if 'B09' in x else x)
+        df_hlsprocessed = df_hlsprocessed.rename(columns=lambda x: x.replace('B10', 'B09') if 'B10' in x else x)
 
     elif "L" in df_hlsprocessed_raw['LorS'].unique():
-        # print(f"Pattern 'L30' found in file: {file_name}")
-        #in this dataset, bands didnt come with generalized nomenclature
-        #verify that's the case
-        try:
-            df_hlsprocessed_raw['B08_count']==0 
-            #looks like it can be adapted nomenclature
-            print('looks like it can be adapted nomenclature')
-        except:
-            #it didnt really
-            print('confirmed, not adapted nomenclature')
-            df_hlsprocessed=df_hlsprocessed_raw
-            #df_hlsprocessed=df_hlsprocessed_raw.rename(columns={'old_col1': 'new_col1', 'old_col2': 'new_col2'})
-            #df_hlsprocessed = df_hlsprocessed_raw.rename(columns=lambda x: x.replace('B01', 'B05') if 'B01' in x else x)
-    
+        # Landsat, doesnt need band name adaptations
+        df_hlsprocessed=df_hlsprocessed_raw
+   
     
     mapping = {'L': 0, 'S': 1}
     df_hlsprocessed['LorS'] = df_hlsprocessed['LorS'].replace(mapping)
+
     
     # empty output column
-    df_hlsprocessed['tss_value'] = 0
+    df_hlsprocessed['SSC'] = 0
     
-    dataframe_array=df_hlsprocessed.to_numpy()
+    #dataframe_array=df_hlsprocessed.to_numpy()
     
     
     # input_cols= ['b1_min','b1_mean','b1_max','b1_std','b1_median','b1_count','b2_min','b2_mean','b2_max','b2_std',\
@@ -157,20 +167,30 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
     #                             'b10_median','b11_min','b11_mean','b11_max','b11_std','b11_median','b12_min','b12_mean','b12_max','b12_std',\
     #                                 'b12_median','b8a_min','b8a_mean','b8a_max','b8a_std','b8a_median','LorS']
     
-    input_cols= ['B01_min','B01_mean','B01_max','B01_std','B01_median','B01_count','B02_min','B02_mean','B02_max','B02_std',\
-                    'B02_median','B03_min','B03_mean','B03_max','B03_std','B03_median','B04_min','B04_mean','B04_max','B04_std',\
-                    'B04_median','B09_min','B09_mean','B09_max','B09_std',\
-                                'B09_median','B06_min','B06_mean','B06_max','B06_std','B06_median','B07_min','B07_mean','B07_max','B07_std',\
-                                    'B07_median','B05_min','B05_mean','B05_max','B05_std','B05_median','LorS']
-
+    # input_cols= ['B01_min','B01_mean','B01_max','B01_std','B01_median','B01_count','B02_min','B02_mean','B02_max','B02_std',\
+    #                 'B02_median','B03_min','B03_mean','B03_max','B03_std','B03_median','B04_min','B04_mean','B04_max','B04_std',\
+    #                 'B04_median','B09_min','B09_mean','B09_max','B09_std',\
+    #                             'B09_median','B06_min','B06_mean','B06_max','B06_std','B06_median','B07_min','B07_mean','B07_max','B07_std',\
+    #                                 'B07_median','B05_min','B05_mean','B05_max','B05_std','B05_median','LorS']
+    input_cols = [
+    'B01_min','B01_mean','B01_max','B01_std','B01_median','B01_wmean','B01_wstd','B01_wmedian','B01_count',
+    'B02_min','B02_mean','B02_max','B02_std','B02_median','B02_wmean','B02_wstd','B02_wmedian',
+    'B03_min','B03_mean','B03_max','B03_std','B03_median','B03_wmean','B03_wstd','B03_wmedian',
+    'B04_min','B04_mean','B04_max','B04_std','B04_median','B04_wmean','B04_wstd','B04_wmedian',
+    'B09_min','B09_mean','B09_max','B09_std','B09_median','B09_wmean','B09_wstd','B09_wmedian',
+    'B06_min','B06_mean','B06_max','B06_std','B06_median','B06_wmean','B06_wstd','B06_wmedian',
+    'B07_min','B07_mean','B07_max','B07_std','B07_median','B07_wmean','B07_wstd','B07_wmedian',
+    'B05_min','B05_mean','B05_max','B05_std','B05_median','B05_wmean','B05_wstd','B05_wmedian',
+    'LorS'
+    ]
 
     
-    output_cols=['tss_value']
+    output_cols=['SSC']#['tss_value']
     
     coords_cols= ['lat','lon']
     
     #limits for m1
-    minimum_out=0 #no concentration below 0 is possible
+    minimum_out=-1.0 #in log scale 
     
     varnum=len(input_cols)#
     
@@ -226,7 +246,8 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
     
     if not data_coords_array_filtered2.size >0:
         print('all nans found in preprocessing')
-        sys.exit(0)
+        # sys.exit(0)
+        raise ValueError('all nans found in preprocessing')
     else:
     
         y_modeled,y_observed,coords_obs= f_execens(model1_load,model2_load,data_input_array_filtered2,data_output_array_filtered2,data_coords_array_filtered2,minimum_out,maximum_out,min_m2,max_m2,min_input_m1,max_input_m1,min_input_m2,max_input_m2,maxval_cut,varnum) #
@@ -247,13 +268,13 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
             [truncate_to_three_decimal_places(lat), truncate_to_three_decimal_places(lon)] for lat, lon in coords_obs
             ])
         # Truncate coords_reach dataframe's Latitude and Longitude columns to three decimal places
-        df_hlsprocessed_raw['Latitude_trunc'] = df_hlsprocessed_raw['lat'].apply(truncate_to_three_decimal_places)
-        df_hlsprocessed_raw['Longitude_trunc'] = df_hlsprocessed_raw['lon'].apply(truncate_to_three_decimal_places)
-        coords_reach_unique = df_hlsprocessed_raw.drop_duplicates(subset=['Latitude_trunc', 'Longitude_trunc'])
+        df_hlsprocessed['Latitude_trunc'] = df_hlsprocessed['lat'].apply(truncate_to_three_decimal_places)
+        df_hlsprocessed['Longitude_trunc'] = df_hlsprocessed['lon'].apply(truncate_to_three_decimal_places)
+        coords_reach_unique = df_hlsprocessed.drop_duplicates(subset=['Latitude_trunc', 'Longitude_trunc'])
         # Create a df from truncated coords_obs
         df_coords_obs = pd.DataFrame(coords_obs_truncated, columns=['Latitude_trunc', 'Longitude_trunc'])
         df_coords_obs['SSC'] = y_modeled_zero
-        df_coords_obs['date']=df_hlsprocessed_raw['date']
+        # df_coords_obs['date']=df_hlsprocessed_raw['date']
         # Merge coords_obs with coords_reach on the truncated coordinates
         merged_data_coords = pd.merge(df_coords_obs, coords_reach_unique, on=['Latitude_trunc', 'Longitude_trunc'], how='left')
         # Extract the Discharge (reach IDs) for the matched coordinates
@@ -274,12 +295,31 @@ def ann_ssc_model(df_hlsprocessed_raw, model_dir):
     #save to csv file
     #makecsvname=(path_save_results+'/'+'meancoords_SSConly'+'.csv')#
     #df_stacked.to_csv(makecsvname)
+
+    # Clean df
+
+    # Rename 'SSC_x' to 'SSC' if it exists
+    if 'SSC_x' in df_reordered.columns:
+        df_reordered.rename(columns={'SSC_x': 'SSC'}, inplace=True)
+
+    # Drop columns if they exist
+    columns_to_drop = ['SSC_y', 'Latitude_trunc', 'Longitude_trunc']
+    df_reordered.drop(columns=[col for col in columns_to_drop if col in df_reordered.columns], inplace=True)
+
+
+    mapping = {0:'L', 1:'S'}
+    df_reordered['LorS'] = df_reordered['LorS'].replace(mapping)
+
+
+
+
     # End the timer
     end_time = time.time()
 
     # Calculate the dispensed time
     elapsed_time = end_time - start_time
     print(f"Elapsed time: {elapsed_time:.4f} seconds")
+    df_reordered['pixel_count'] =     df_reordered['B01_count']
     return df_reordered
     # =============================================================================
     # columns = ['lat', 'lon', 'SSC_modeled', 'discharge_SWOT', 'sedflux','date','ReachID']

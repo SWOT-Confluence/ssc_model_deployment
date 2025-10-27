@@ -11,6 +11,10 @@ import glob
 import time
 import random
 import subprocess as sp
+import logging
+import time
+from random import randint
+
 
 # Third-party imports
 import botocore
@@ -73,8 +77,8 @@ def given_tile_geometry_find_nodes(tile_geometry, sword_files, latlon_file):
     # time.wait(500)
 
     node_ids_reach_ids_lat_lons =  list(zip(sentinal_tiles['nodeid'], sentinal_tiles['reachid'], [(i.x, i.y) for i in sentinal_tiles['geometry']]))
-    print('latlon file provided...')
-    print('here are some example node points...', all_node_lat_lons[:5])
+    # print('latlon file provided...')
+    # print('here are some example node points...', all_node_lat_lons[:5])
         
     # else:
     #     # for sword_filepath in sword_files:
@@ -148,7 +152,7 @@ def load_bands_to_memory(tile:str, run_location:str):
         if run_location == 'aws':
             full_s3_band_path = full_s3_band_path.replace(http_prefix, s3_prefix)
         # full_s3_band_path = full_s3_band_path.replace('protected', 'public')
-        print('here is path', full_s3_band_path)
+        # print('here is path', full_s3_band_path)
         # hls_da = rio.open(full_s3_band_path, chuncks=True)
         # sp.run(['wget', full_s3_band_path, "-P", "/data/input/ssc/tmp"])
 
@@ -169,9 +173,10 @@ def load_bands_to_memory(tile:str, run_location:str):
         hls_da.close()
         
         if cloud_cover > 50:
-            print(f'Cloud cover too high for tile at {cloud_cover}%...')
-            print('exiting...')
-            exit()
+            logging.info(f'Cloud cover too high for tile at {cloud_cover}%...')
+            logging.info('exiting...')
+            # exit()
+            raise ValueError(f'Cloud cover too high for tile at {cloud_cover}%...')
 
 
     
@@ -193,18 +198,27 @@ def get_creds_to_env():
     """Return AWS S3 credentials to access S3 shapefiles."""
 
     creds = {}
-    try:
-        ssm = boto3.client("ssm", region_name="us-west-2")
-        prefix = os.environ["PREFIX"]
-        creds['user'] = ssm.get_parameter(Name=f'{prefix}-lpdaac-user', WithDecryption=True)['Parameter']['Value']
-        creds['pass'] = ssm.get_parameter(Name=f'{prefix}-lpdaac-password', WithDecryption=True)['Parameter']['Value']
-    except KeyError as e:
-        print('Using local .netrc file; this needs to be created prior to running')
-    except botocore.exceptions.ClientError as e:
-        raise e
+
+    tries = 10
+    for i in range(tries):
+        try:
+            ssm = boto3.client("ssm", region_name="us-west-2")
+            prefix = os.environ["PREFIX"]
+            creds['user'] = ssm.get_parameter(Name=f'{prefix}-lpdaac-user', WithDecryption=True)['Parameter']['Value']
+            creds['pass'] = ssm.get_parameter(Name=f'{prefix}-lpdaac-password', WithDecryption=True)['Parameter']['Value']
+            break
+        except KeyError as e:
+
+            logging.info('Using local .netrc file; this needs to be created prior to running')
+            logging.info(f'Here is why we are not using the netrc {e}')
+            break
+        except botocore.exceptions.ClientError as e:
+            logging.info(f'pull failed because {e}')
+            logging.info(f'Trying again for the {i} time...')
+            time.sleep(randint(1,100))
 
     if creds:
-        print('creating netrc')
+        logging.info('creating netrc')
         f = open("/root/.netrc", "w")
         f.write(f"machine urs.earthdata.nasa.gov login {creds['user']} password {creds['pass']}")
         f.close()
@@ -221,10 +235,11 @@ def login_to_s3():
     try:
         temp_creds_req = temp_creds_req.json()
     except Exception as e:
-        print(e)
-        print('temp creds request failed', temp_creds_req)
-        print('here is raw response for bugfixing...', temp_creds_req.content)
-        exit()
+        logging.info(e)
+        logging.info('temp creds request failed')
+        # print('here is raw response for bugfixing...', temp_creds_req.content)
+        # exit()
+        raise ValueError('temp creds request failed')
     
 
     session = boto3.Session(aws_access_key_id=temp_creds_req['accessKeyId'], 
@@ -249,30 +264,21 @@ def login_to_s3():
 
 
 
-def input(indir, index_to_run:int, hls_s3_json_filename:str , sentinel_shapefile_filepath:str, latlon_file, run_location:str, reaches_of_interest_path:str):
+def input(index_to_run:int, json_data , sentinel_shapefile_filepath:str, latlon_file, run_location:str, reaches_of_interest_path:str, sword_dir:str, sword_data):
     """
     function descripotion
     """
 
-    # parse input filename
-    # hls_s3_json_filename = os.path.join(indir, hls_s3_json_filename)
-    hls_s3_json_filename = os.path.join(indir,hls_s3_json_filename)
-    # print(hls_s3_json_filename)
 
-    # read in hls_s3_json_path
-    with open(hls_s3_json_filename) as f:
-        json_data = json.load(f)
 
 
     # tile_code = tile_filename.split('.')[2]
-
-    sword_dir = os.path.join(indir, 'sword')
 
     # read in gdf of sentinal
 
     if latlon_file is not None:
         
-        tile = list(json_data[index_to_run].keys())[0]
+        tile = list(json_data.keys())[index_to_run]
         
         # all_tiles_in_memory, l_or_s, tile_code, cloud_cover, date
         all_bands_in_memory, l_or_s, tile_code, cloud_cover, date = load_bands_to_memory(tile = tile, run_location = run_location)
@@ -290,7 +296,7 @@ def input(indir, index_to_run:int, hls_s3_json_filename:str , sentinel_shapefile
         node_ids_reach_ids_lat_lons = given_tile_geometry_find_nodes(tile_geometry, all_swords, latlon_file)
     
     else:
-        tile = list(json_data[index_to_run].keys())[0]
+        tile = list(json_data.keys())[index_to_run]
         
         # all_tiles_in_memory, l_or_s, tile_code, cloud_cover, date
         all_bands_in_memory, l_or_s, tile_code, cloud_cover, date = load_bands_to_memory(tile = tile, run_location = run_location)
@@ -298,7 +304,7 @@ def input(indir, index_to_run:int, hls_s3_json_filename:str , sentinel_shapefile
         # parse filename for tile code and filename for return
         tile_filename = os.path.basename(tile)
         
-        tile_reaches = json_data[index_to_run][tile]
+        tile_reaches = json_data[tile]
         
         
         if reaches_of_interest_path is not None:
@@ -312,19 +318,28 @@ def input(indir, index_to_run:int, hls_s3_json_filename:str , sentinel_shapefile
         else:
             overlapping_reaches = tile_reaches
             
+
+
+        # overlapping_val_reaches = []
+
+        # for i in overlapping_reaches:
+        #     if os.path.exists(os.path.join(validation_dir, f'{i}_validation.nc')):
+        #         overlapping_val_reaches.append(i)
+
+        # overlapping_reaches = overlapping_val_reaches
+
         if len(overlapping_reaches) == 0:
             print('no reaches found in tile, exiting...')
-            exit()
-            
-                    
-        sword_data = load_correct_sword(a_reach = str(overlapping_reaches[0]), sword_dir = sword_dir)
+            # exit()
+            raise ValueError('no reaches found in tile, exiting...')
         node_ids_reach_ids_lat_lons = given_reach_find_nodes(overlapping_reaches = overlapping_reaches, sword_data = sword_data)
     # print(node_ids_reach_ids_lat_lons, 'here are points')
+    # node_ids_reach_ids_lat_lons = node_ids_reach_ids_lat_lons[:4]
 
     # return bands in memory for preprocessing, and processing targets
     return all_bands_in_memory, node_ids_reach_ids_lat_lons, tile_filename, l_or_s, tile_code, cloud_cover, date
 
-def load_correct_sword(a_reach:str, sword_dir:str):
+def load_correct_sword(a_reach:str, sword_dir:str, sos_bucket:str):
     lookup = {
     "1": "af",
     "4": "as", "3": "as",
@@ -334,15 +349,20 @@ def load_correct_sword(a_reach:str, sword_dir:str):
     "6": "sa"
     }
     
-    sword_path = os.path.join(sword_dir, f'{lookup[a_reach[0]]}_sword_v16_patch.nc')
+    # sword_path = os.path.join(sword_dir, f'{lookup[a_reach[0]]}_sword_v16_patch.nc')
 
-    if os.path.exists(sword_path):
-        pass
-    else:
-        sword_path = sword_path.replace('_patch', '')
+    # if os.path.exists(sword_path):
+    #     pass
+    # else:
+    #     sword_path = sword_path.replace('_patch', '')
+    sos_file = os.path.join("/tmp", f'{lookup[a_reach[0]]}_sword_v16.nc')
+
+
+    from sos_read.sos_read import download_sos
+    download_sos(sos_bucket, sos_file)
 
     
-    return ncf.Dataset(sword_path)
+    return ncf.Dataset(sos_file)
     
 
 def given_reach_find_nodes(overlapping_reaches:list, sword_data):
@@ -371,7 +391,6 @@ def given_reach_find_nodes(overlapping_reaches:list, sword_data):
             
 
 
-    sword_data.close()
     
     node_ids_reach_ids_lat_lons = [[a, b, (c, d)] for a, b, c, d in zip(node_ids, reach_ids, lat_list, lon_list)]
 
