@@ -49,6 +49,9 @@ ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 FROM stage2 AS stage3
 COPY . /opt/
 
+RUN mkdir -p /root/.cache/torch/hub/checkpoints/ && wget -O /root/.cache/torch/hub/checkpoints/resnet34-333f7ec4.pth https://download.pytorch.org/models/resnet34-333f7ec4.pth
+
+
 LABEL version="1.0" \
         description="SSC Prediction Module" \
         "confluence.contact"="tsimmons@umass.edu" \
