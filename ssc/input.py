@@ -296,7 +296,7 @@ def input(index_to_run:int, json_data , sentinel_shapefile_filepath:str, latlon_
         node_ids_reach_ids_lat_lons = given_tile_geometry_find_nodes(tile_geometry, all_swords, latlon_file)
     
     else:
-        tile = list(json_data.keys())[index_to_run]
+        tile = list(json_data[index_to_run].keys())[0]
         
         # all_tiles_in_memory, l_or_s, tile_code, cloud_cover, date
         all_bands_in_memory, l_or_s, tile_code, cloud_cover, date = load_bands_to_memory(tile = tile, run_location = run_location)
@@ -304,7 +304,7 @@ def input(index_to_run:int, json_data , sentinel_shapefile_filepath:str, latlon_
         # parse filename for tile code and filename for return
         tile_filename = os.path.basename(tile)
         
-        tile_reaches = json_data[tile]
+        tile_reaches = json_data[index_to_run][tile]
         
         
         if reaches_of_interest_path is not None:
