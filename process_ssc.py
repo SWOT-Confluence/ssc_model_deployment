@@ -1,3 +1,4 @@
+# a comment
 """
 Execute end to end processing of HLS tiles for SSC prediction.
 
@@ -314,10 +315,14 @@ def main():
         tries = 4
         for i in range(tries):
             try:
-                likely_sword = load_correct_sword(a_reach = str(json_data[list(json_data.keys())[0]][0]), sword_dir = sword_dir, sos_bucket = sos_bucket)
+                #json_data[0][0]
+                first_key = list(json_data[0].keys())[0]
+
+                likely_sword = load_correct_sword(a_reach = str(json_data[0][first_key][0]), sword_dir = sword_dir, sos_bucket = sos_bucket)
+                #likely_sword = load_correct_sword(a_reach = str(json_data[list(json_data.keys())[0]][0]), sword_dir = sword_dir, sos_bucket = sos_bucket)
                 break
             except:
-                logging.info('Sword load failed, trying again')
+                logging.info('Sword load failed, trying again', exc_info=True)
 
         
 
@@ -335,7 +340,8 @@ def main():
         logging.info(f'Running input... on index {current_index}')
         start = datetime.datetime.now()
 
-        tile_filename = list(json_data.keys())[current_index]
+        tile_filename = list(json_data[current_index].keys())[0]
+        #tile_filename = list(json_data.keys())[current_index]
         try:
             
             # all_bands_in_memory, node_ids_reach_ids_lat_lons, tile_filename, l_or_s, tile_code, cloud_cover, date
@@ -479,7 +485,7 @@ def main():
             print(os.path.join(out_dir,tile_filename.replace('.tar','') + '.csv'), model_outputs_df)
         
         except Exception as e:
-            logging.info(f'failed..., {current_index}, {e}')
+            logging.info(f'failed..., {current_index}, {e}',exc_info=True)
             fail_log.append([str(current_index), os.path.basename(tile_filename), str(e)])
 
 
