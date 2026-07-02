@@ -355,7 +355,7 @@ def load_correct_sword(a_reach:str, sword_dir:str, sos_bucket:str):
     #     pass
     # else:
     #     sword_path = sword_path.replace('_patch', '')
-    sos_file = os.path.join("/tmp", f'{lookup[a_reach[0]]}_sword_v16.nc')
+    sos_file = os.path.join("/tmp", f'{lookup[a_reach[0]]}_sword_v17.nc')
 
 
     from sos_read.sos_read import download_sos
